@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
 export default function SuperAdmin() {
-    // 🔒 SEGURIDAD BÁSICA DEL PANEL
-    const MASTER_PASSWORD = 'master-saas-2024'; 
+    // 🔐 Auth real con Supabase (reemplaza la contraseña maestra hardcodeada)
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [passInput, setPassInput] = useState('');
+    const [checkingSession, setCheckingSession] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [loggingIn, setLoggingIn] = useState(false);
 
     const [stores, setStores] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState('');
     
     const [form, setForm] = useState({
-        nombre: '', slug: '', telefono_whatsapp: '', latitud: '19.3082', longitud: '-99.0812', admin_pin: '1234', abierto: true
+        nombre: '', slug: '', telefono_whatsapp: '', latitud: '19.3082', longitud: '-99.0812', abierto: true
     });
 
     const [bulkModal, setBulkModal] = useState({ open: false, storeId: null, storeName: '' });
@@ -21,6 +24,29 @@ export default function SuperAdmin() {
     const [copied, setCopied] = useState(false);
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+
+    // Verificar si ya hay una sesión activa con rol superadmin al montar
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: perfil } = await supabase
+                    .from('perfiles')
+                    .select('rol')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (perfil?.rol === 'superadmin') {
+                    setIsAuthenticated(true);
+                } else {
+                    // Sesión válida pero sin permiso de superadmin: cerrarla para evitar confusión
+                    await supabase.auth.signOut();
+                }
+            }
+            setCheckingSession(false);
+        };
+        checkSession();
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated) fetchStores();
@@ -32,10 +58,44 @@ export default function SuperAdmin() {
         setLoading(false);
     };
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (passInput === MASTER_PASSWORD) setIsAuthenticated(true);
-        else alert("Contraseña incorrecta");
+        setLoginError('');
+        setLoggingIn(true);
+
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password
+        });
+
+        if (authError || !authData.user) {
+            setLoginError('Correo o contraseña incorrectos.');
+            setLoggingIn(false);
+            return;
+        }
+
+        const { data: perfil, error: perfilError } = await supabase
+            .from('perfiles')
+            .select('rol')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (perfilError || perfil?.rol !== 'superadmin') {
+            setLoginError('Esta cuenta no tiene permisos de Super Admin.');
+            setLoggingIn(false);
+            await supabase.auth.signOut();
+            return;
+        }
+
+        setIsAuthenticated(true);
+        setLoggingIn(false);
+    };
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setIsAuthenticated(false);
+        setEmail('');
+        setPassword('');
     };
 
     const createStore = async (e) => {
@@ -43,7 +103,7 @@ export default function SuperAdmin() {
         const cleanSlug = form.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
         const { error } = await supabase.from('tiendas').insert([{
-            nombre: form.nombre, slug: cleanSlug, admin_pin: form.admin_pin,
+            nombre: form.nombre, slug: cleanSlug,
             telefono_whatsapp: form.telefono_whatsapp,
             latitud: parseFloat(form.latitud), longitud: parseFloat(form.longitud),
             abierto: form.abierto,
@@ -55,7 +115,7 @@ export default function SuperAdmin() {
 
         if (!error) {
             showToast('✅ Tienda creada exitosamente');
-            setForm({ nombre: '', slug: '', admin_pin: '1234', telefono_whatsapp: '', latitud: '19.3082', longitud: '-99.0812', abierto: true });
+            setForm({ nombre: '', slug: '', telefono_whatsapp: '', latitud: '19.3082', longitud: '-99.0812', abierto: true });
             fetchStores();
         } else {
             showToast('❌ Error: ' + error.message);
@@ -141,14 +201,22 @@ Aquí está el menú a procesar:
         setTimeout(() => setCopied(false), 2000);
     };
 
+    // Pantalla de carga mientras se verifica si ya hay sesión activa
+    if (checkingSession) {
+        return <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">Verificando sesión...</div>;
+    }
+
+    // 🔐 PANTALLA LOGIN (email + contraseña real de Supabase Auth)
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
                 <form onSubmit={handleLogin} className="bg-gray-900 p-8 rounded-2xl border border-red-900 shadow-2xl max-w-sm w-full text-center">
                     <h1 className="text-red-500 text-2xl font-black mb-2 uppercase">Acceso Restringido</h1>
                     <p className="text-gray-500 text-sm mb-6">Solo personal autorizado</p>
-                    <input type="password" value={passInput} onChange={e => setPassInput(e.target.value)} placeholder="Contraseña Maestra" className="w-full bg-gray-950 border border-gray-700 text-white rounded-lg p-3 outline-none focus:border-red-500 mb-4 text-center" />
-                    <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg">ENTRAR</button>
+                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" className="w-full bg-gray-950 border border-gray-700 text-white rounded-lg p-3 outline-none focus:border-red-500 mb-3 text-center" disabled={loggingIn} />
+                    <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña" className="w-full bg-gray-950 border border-gray-700 text-white rounded-lg p-3 outline-none focus:border-red-500 mb-4 text-center" disabled={loggingIn} />
+                    {loginError && <p className="text-red-500 text-xs font-bold mb-4">{loginError}</p>}
+                    <button type="submit" disabled={loggingIn} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg disabled:opacity-50">{loggingIn ? 'VERIFICANDO...' : 'ENTRAR'}</button>
                 </form>
             </div>
         );
@@ -161,12 +229,15 @@ Aquí está el menú a procesar:
             <div className="max-w-5xl mx-auto space-y-8">
                 {toast && <div className="fixed top-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-xl font-bold z-[9999]">{toast}</div>}
                 
-                <header className="border-b border-gray-800 pb-4 flex justify-between items-center">
+                <header className="border-b border-gray-800 pb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-black tracking-wider text-orange-500">SUPER ADMIN SAAS</h1>
                         <p className="text-sm text-gray-400">Control central de arrendatarios y comercios</p>
                     </div>
-                    <span className="bg-gray-900 border border-gray-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-black shadow">Total Tiendas: {stores.length}</span>
+                    <div className="flex items-center gap-3">
+                        <span className="bg-gray-900 border border-gray-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-black shadow">Total Tiendas: {stores.length}</span>
+                        <button onClick={handleLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/50 px-4 py-2 rounded-lg text-sm font-bold transition-all">SALIR</button>
+                    </div>
                 </header>
 
                 {/* FORMULARIO */}
@@ -175,7 +246,6 @@ Aquí está el menú a procesar:
                     <form onSubmit={createStore} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div><label className="block text-xs text-gray-400 mb-1">Nombre Comercial</label><input type="text" required value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500" /></div>
                         <div><label className="block text-xs text-gray-400 mb-1">Slug (URL)</label><input type="text" required value={form.slug} onChange={e => setForm({...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500" /></div>
-                        <div><label className="block text-xs text-gray-400 mb-1">PIN Panel Admin</label><input type="text" required value={form.admin_pin} onChange={e => setForm({...form, admin_pin: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500 font-mono" /></div>
                         <div><label className="block text-xs text-gray-400 mb-1">WhatsApp (con código país)</label><input type="text" required value={form.telefono_whatsapp} onChange={e => setForm({...form, telefono_whatsapp: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500" /></div>
                         <div><label className="block text-xs text-gray-400 mb-1">Latitud Base</label><input type="number" step="any" required value={form.latitud} onChange={e => setForm({...form, latitud: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500" /></div>
                         <div><label className="block text-xs text-gray-400 mb-1">Longitud Base</label><input type="number" step="any" required value={form.longitud} onChange={e => setForm({...form, longitud: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 outline-none focus:border-orange-500" /></div>
@@ -206,7 +276,7 @@ Aquí está el menú a procesar:
                                         </span>
                                     </div>
                                     <p className="text-xs text-gray-400 mt-2">
-                                        <span className="text-gray-500">Slug:</span> /{store.slug} | <span className="text-gray-500">PIN:</span> {store.admin_pin} | <span className="text-gray-500">Tel:</span> {store.telefono_whatsapp}
+                                        <span className="text-gray-500">Slug:</span> /{store.slug} | <span className="text-gray-500">Tel:</span> {store.telefono_whatsapp}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
