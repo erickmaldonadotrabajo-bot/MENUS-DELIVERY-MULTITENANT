@@ -533,7 +533,7 @@ export default function Admin() {
                     if (!resData) throw new Error("Dominio no asignado");
                     data = resData;
                 } else {
-                    if (!parametroTienda) throw new Error("Falta parámetro tienda");
+                    if (!parametroTienda) throw new Error("Falta parámetro");
                     let query = supabase.from('tiendas').select('id, slug');
                     query = /^\d+$/.test(parametroTienda) ? query.eq('id', parseInt(parametroTienda)) : query.eq('slug', parametroTienda);
                     const { data: resData, error } = await query.single();
