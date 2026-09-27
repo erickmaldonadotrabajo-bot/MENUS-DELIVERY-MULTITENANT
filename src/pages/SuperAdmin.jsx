@@ -81,7 +81,7 @@ export default function SuperAdmin() {
             .single();
 
         if (perfilError || perfil?.rol !== 'superadmin') {
-            setLoginError('Esta cuenta no tiene permisos de Super Admin.');
+            setLoginError('Esta cuenta no tiene permisos.');
             setLoggingIn(false);
             await supabase.auth.signOut();
             return;

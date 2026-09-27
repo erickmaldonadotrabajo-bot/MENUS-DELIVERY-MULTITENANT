@@ -43,14 +43,14 @@ const Ticket = ({ order, tienda }) => {
     return (
         <div id="ticket-area" style={{ position: 'fixed', top: 0, left: '-9999px', width: '58mm', backgroundColor: 'white', color: 'black', zIndex: -1 }}>
             <div className="ticket-header" style={{ textAlign: 'center', marginBottom: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {tienda.logo_url && <img src={tienda.logo_url} alt="Logo" style={{ width: '60px', height: '60px', borderRadius: '50%', marginBottom: '5px', filter: 'grayscale(100%)', objectFit: 'cover' }} />}
-                <h2 style={{fontSize: '16px', fontWeight: 'bold', margin:0}}>{tienda.nombre}</h2>
-                <p style={{fontWeight:'bold', fontSize:'14px', margin:'5px 0'}}>{isDelivery ? 'DOMICILIO' : 'PICKUP'}</p>
+                {tienda.logo_url && <img src={tienda.logo_url} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '5px', filter: 'grayscale(100%)', objectFit: 'cover' }} />}
+                <h2 style={{fontSize: '20px', fontWeight: 'bold', margin:0}}>{tienda.nombre}</h2>
+                <p style={{fontWeight:'bold', fontSize:'16px', margin:'5px 0'}}>{isDelivery ? 'DOMICILIO' : 'PICKUP'}</p>
                 <p style={{fontSize:'12px', margin:0}}>{date}</p>
                 <p style={{fontSize:'12px', fontWeight:'bold', margin:0}}>FOLIO: #{order.id}</p>
             </div>
             <div style={{ borderBottom: '2px dashed #000', margin: '5px 0', width: '100%' }}></div>
-            <div style={{ fontSize: '14px' }}>
+            <div style={{ fontSize: '16px' }}>
                 <p style={{ margin:0 }}><strong>CTE:</strong> {limpiarTexto(order.cliente_nombre)}</p>
                 <p style={{ margin:0 }}><strong>TEL:</strong> {order.cliente_telefono}</p>
                 {order.respuestas_checkout && Object.keys(order.respuestas_checkout).map(k => (
@@ -61,23 +61,23 @@ const Ticket = ({ order, tienda }) => {
             {order.nota_cliente && (
                 <div style={{ border: '2px solid #000', padding: '5px', margin: '5px 0', fontWeight: 'bold', fontSize: '11px' }}>
                     <p style={{margin:0}}>NOTAS:</p>
-                    <p style={{fontSize:'14px', margin:0}}>{limpiarTexto(order.nota_cliente)}</p>
+                    <p style={{fontSize:'18px', margin:0}}>{limpiarTexto(order.nota_cliente)}</p>
                 </div>
             )}
-            <div style={{width: '100%', fontSize: '14px'}}>
+            <div style={{width: '100%', fontSize: '18px'}}>
                 {order.detalle_json && order.detalle_json.map((item, i) => (
                     <div key={i} style={{marginBottom: '5px', display: 'flex', alignItems: 'flex-start'}}>
                         <div style={{flex: '1', paddingRight: '5px'}}>
                             <span style={{fontWeight:'bold'}}>-{item.qty} {limpiarTexto(item.nombre)}</span>
-                            {item.isExtra && <div style={{fontSize: '12px', fontWeight: 'bold'}}>+ {item.extraAppliedName}</div>}
-                            {item.details && <div style={{fontSize: '12px', fontStyle: 'italic'}}>{limpiarTexto(item.details)}</div>}
+                            {item.isExtra && <div style={{fontSize: '14px', fontWeight: 'bold'}}>+ {item.extraAppliedName}</div>}
+                            {item.details && <div style={{fontSize: '14px', fontStyle: 'italic'}}>{limpiarTexto(item.details)}</div>}
                         </div>
                         <div style={{width: '50px', textAlign: 'right', fontWeight: 'bold'}}>${(item.price * item.qty).toFixed(0)}</div>
                     </div>
                 ))}
             </div>
             <div style={{ borderBottom: '2px dashed #000', margin: '5px 0', width: '100%' }}></div>
-            <div style={{ textAlign: 'right', marginTop: '5px', borderTop: '1px solid #000', paddingTop: '5px', fontSize: '14px' }}>
+            <div style={{ textAlign: 'right', marginTop: '5px', borderTop: '1px solid #000', paddingTop: '5px', fontSize: '16px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span>SUBTOTAL:</span><span>${parseFloat(order.total_subtotal).toFixed(2)}</span></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span>ENVIO:</span><span>{isDelivery ? `$${parseFloat(order.total_envio).toFixed(2)}` : 'N/A'}</span></div>
                 {order.total_propina > 0 && <div style={{ display:'flex', justifyContent:'space-between' }}><span>PROPINA:</span><span>${parseFloat(order.total_propina).toFixed(2)}</span></div>}
@@ -92,7 +92,7 @@ const Ticket = ({ order, tienda }) => {
                     </div>
                 )}
             </div>
-            <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '12px', paddingBottom: '10px' }}>
+            <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '16px', paddingBottom: '10px' }}>
                 <p>GRACIAS POR SU PREFERENCIA!</p>
             </div>
         </div>
