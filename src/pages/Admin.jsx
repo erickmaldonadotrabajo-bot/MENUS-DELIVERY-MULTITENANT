@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { getCleanDomain, isPremiumDomain } from '../utils/helpers';
+import { useAdminAuth } from '../hooks/useAdminAuth';
+import { useAdminData } from '../hooks/useAdminData';
 
 // Sonido de alerta
 const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3');
@@ -27,14 +30,7 @@ const Icons = {
 
 const limpiarTexto = (t) => t ? String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").trim() : "";
 
-const getCleanDomain = () => {
-    let hostname = window.location.hostname;
-    hostname = hostname.replace(/^www\./, ''); 
-    hostname = hostname.split(':')[0]; 
-    return hostname.trim().toLowerCase(); 
-};
-
-// COMPONENTES SECUNDARIOS (sin cambios)
+// COMPONENTES SECUNDARIOS (Vistas)
 const Ticket = ({ order, tienda }) => {
     if (!order || !tienda) return null;
     const date = new Date(order.created_at).toLocaleString('es-MX');
@@ -103,12 +99,7 @@ const OrderCard = ({ order, tienda, onComplete, onPrint, onCancel }) => {
     const date = new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const handleComplete = () => { if(confirm("¿PEDIDO DESPACHADO?")) onComplete(order.id); };
-    
-    const handleCancelClick = () => {
-        if (confirm("¿Seguro que quieres CANCELAR este pedido?")) {
-            onCancel(order.id);
-        }
-    };
+    const handleCancelClick = () => { if(confirm("¿Seguro que quieres CANCELAR este pedido?")) onCancel(order.id); };
 
     const mapLink = (order.latitud && order.longitud) ? `https://www.google.com/maps/search/?api=1&query=${order.latitud},${order.longitud}` : null;
     
@@ -187,12 +178,11 @@ const OrderCard = ({ order, tienda, onComplete, onPrint, onCancel }) => {
     );
 };
 
-const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) => {
+const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
     const [form, setForm] = useState({});
     const [newTopping, setNewTopping] = useState("");
     const [toppingsList, setToppingsList] = useState([]);
     const [extrasList, setExtrasList] = useState([]);
-    
     const [uploadingField, setUploadingField] = useState(null); 
     
     useEffect(() => {
@@ -237,7 +227,7 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
             const urlParts = url.split('/');
             const fileName = urlParts[urlParts.length - 1];
             if (fileName) await supabase.storage.from('productos').remove([fileName]);
-        } catch (e) { console.error("Fallo al intentar borrar archivo antiguo", e); }
+        } catch (e) { console.error("Fallo al intentar borrar archivo", e); }
     };
 
     const handleRemoveMedia = async (field) => {
@@ -253,20 +243,9 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
     const handleMediaUpload = async (e, field) => {
         const file = e.target.files[0];
         if (!file) return;
-
-        if (field === 'video_url' && !file.type.startsWith('video/')) {
-            alert("Error: Por favor selecciona un archivo de VIDEO válido (mp4, webm, mov).");
-            e.target.value = null; return;
-        }
-        if (field === 'image_url' && !file.type.startsWith('image/')) {
-            alert("Error: Por favor selecciona un archivo de IMAGEN válido (jpg, png).");
-            e.target.value = null; return;
-        }
-
-        if (file.size > 49 * 1024 * 1024) { 
-            alert("Tu archivo es muy pesado (máximo 49 MB).");
-            e.target.value = null; return;
-        }
+        if (field === 'video_url' && !file.type.startsWith('video/')) return alert("Por favor selecciona un VIDEO válido.");
+        if (field === 'image_url' && !file.type.startsWith('image/')) return alert("Por favor selecciona una IMAGEN válida.");
+        if (file.size > 49 * 1024 * 1024) return alert("Tu archivo es muy pesado (máximo 49 MB).");
 
         setUploadingField(field);
 
@@ -283,26 +262,23 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                     };
                     videoNode.onerror = () => {
                         URL.revokeObjectURL(videoNode.src);
-                        reject("Archivo de video corrupto o formato no soportado.");
+                        reject("Archivo de video corrupto.");
                     };
                 });
             }
 
-            if (form[field]) { await deleteOldFileFromBucket(form[field]); }
+            if (form[field]) await deleteOldFileFromBucket(form[field]);
 
             const fileExt = file.name.split('.').pop();
             const fileName = `${field === 'video_url' ? 'vid' : 'img'}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
             const { error: uploadError } = await supabase.storage.from('productos').upload(fileName, file);
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName);
-
             setForm(prev => ({ ...prev, [field]: publicUrl }));
-            setUploadingField(null);
-            
         } catch (err) {
-            alert(`Error al procesar/subir: ${err.message || err}`);
+            alert(`Error al procesar: ${err.message || err}`);
+        } finally {
             setUploadingField(null);
         }
     };
@@ -310,14 +286,12 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
     const handleSubmit = (e) => { 
         e.preventDefault(); 
         const cleanExtras = extrasList.filter(ext => ext.nombre.trim() !== '');
-
         let finalData;
         if (type === 'category') {
             finalData = { nombre: form.nombre, nota_preparacion: form.nota_preparacion };
         } else {
             finalData = { ...form, extras: cleanExtras, has_extra: cleanExtras.length > 0, removables: toppingsList };
         }
-        
         onSave(finalData, editItem?.id); 
         onClose(); 
     };
@@ -326,31 +300,26 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 w-full h-full overflow-hidden">
             <div className="bg-gray-800 w-full max-w-md rounded-2xl p-6 border border-gray-700 shadow-2xl overflow-y-auto max-h-[90vh]">
                 <h2 className="text-2xl font-bold text-white mb-4">{editItem ? 'Editar' : 'Nuevo'} {type === 'category' ? 'Categoría' : 'Producto'}</h2>
-                
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-gray-400 text-sm mb-1">Nombre</label>
                         <input required value={form.nombre || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:border-orange-500 outline-none" onChange={e => setForm({...form, nombre: e.target.value})} disabled={uploadingField !== null} />
                     </div>
-                    
                     {type === 'category' && (
                         <div>
                             <label className="block text-gray-400 text-sm mb-1">Descripción / Nota</label>
                             <input value={form.nota_preparacion || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none" placeholder="Ej: Especialidad de la casa..." onChange={e => setForm({...form, nota_preparacion: e.target.value})} disabled={uploadingField !== null} />
                         </div>
                     )}
-                    
                     {type === 'product' && (
                         <React.Fragment>
                             <div>
                                 <label className="block text-gray-400 text-sm mb-1">Descripción del producto</label>
                                 <textarea value={form.descripcion || ''} onChange={e => setForm({...form, descripcion: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-orange-500" rows="2" placeholder="Ej: Deliciosa combinación de..." disabled={uploadingField !== null}></textarea>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-gray-400 text-sm mb-1">Precio Base</label><input required type="number" value={form.precio || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none" onChange={e => setForm({...form, precio: e.target.value})} disabled={uploadingField !== null} /></div>
                             </div>
-                            
                             <div className="p-3 bg-gray-900 rounded-xl border border-gray-700">
                                 <label className="block text-orange-400 text-sm font-bold mb-2">Ingredientes Removibles</label>
                                 <div className="flex gap-2 mb-2">
@@ -363,19 +332,14 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                                     ))}
                                 </div>
                             </div>
-
                             <div>
                                 <label className="block text-gray-400 text-sm mb-1">URL del Video (Opcional - máx 15 seg)</label>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex gap-2">
                                         <input type="text" value={form.video_url || ''} className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-500 outline-none focus:border-orange-500 min-w-0" placeholder="https://..." readOnly />
-                                        
                                         {form.video_url && (
-                                            <button type="button" onClick={() => handleRemoveMedia('video_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Video">
-                                                <Icons.Trash />
-                                            </button>
+                                            <button type="button" onClick={() => handleRemoveMedia('video_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Video"><Icons.Trash /></button>
                                         )}
-
                                         <label className={`bg-gray-800 border border-gray-600 rounded-lg px-4 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition shrink-0 ${uploadingField !== null && uploadingField !== 'video_url' ? 'opacity-50 pointer-events-none' : ''}`} title={form.video_url ? "Reemplazar Video" : "Subir Video"}>
                                             {uploadingField === 'video_url' ? <span className="text-xs text-orange-400 font-bold animate-pulse">Subiendo...</span> : <Icons.Upload />}
                                             <input type="file" accept="video/mp4, video/webm, video/quicktime" className="hidden" onChange={(e) => handleMediaUpload(e, 'video_url')} disabled={uploadingField !== null} />
@@ -383,19 +347,14 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                                     </div>
                                 </div>
                             </div>
-
                             <div>
                                 <label className="block text-gray-400 text-sm mb-1">URL de Imagen (Opcional)</label>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex gap-2">
                                         <input type="text" value={form.image_url || ''} className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-500 outline-none focus:border-orange-500 min-w-0" placeholder="https://..." readOnly />
-                                        
                                         {form.image_url && (
-                                            <button type="button" onClick={() => handleRemoveMedia('image_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Imagen">
-                                                <Icons.Trash />
-                                            </button>
+                                            <button type="button" onClick={() => handleRemoveMedia('image_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Imagen"><Icons.Trash /></button>
                                         )}
-
                                         <label className={`bg-gray-800 border border-gray-600 rounded-lg px-4 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition shrink-0 ${uploadingField !== null && uploadingField !== 'image_url' ? 'opacity-50 pointer-events-none' : ''}`} title={form.image_url ? "Reemplazar Imagen" : "Subir Imagen"}>
                                             {uploadingField === 'image_url' ? <span className="text-xs text-orange-400 font-bold animate-pulse">Subiendo...</span> : <Icons.Upload />}
                                             <input type="file" accept="image/jpeg, image/png, image/webp" className="hidden" onChange={(e) => handleMediaUpload(e, 'image_url')} disabled={uploadingField !== null} />
@@ -403,7 +362,6 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                                     </div>
                                 </div>
                             </div>
-
                             <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
                                 <div className="flex justify-between items-center mb-3">
                                     <label className="text-orange-400 text-sm font-bold">Extras del Producto (Máx 15)</label>
@@ -411,9 +369,7 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                                         <button type="button" onClick={handleAddExtra} className="text-[10px] bg-orange-600 hover:bg-orange-500 px-2 py-1 rounded text-white font-bold transition-all shadow" disabled={uploadingField !== null}>+ AGREGAR</button>
                                     )}
                                 </div>
-                                
                                 {extrasList.length === 0 && <p className="text-xs text-gray-500 italic mb-2">Sin extras configurados.</p>}
-
                                 <div className="space-y-2">
                                     {extrasList.map((ext, i) => (
                                         <div key={i} className="flex gap-2 items-center">
@@ -427,7 +383,6 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                                     ))}
                                 </div>
                             </div>
-
                             <div>
                                 <label className="block text-gray-400 text-sm mb-1">Categoría</label>
                                 <select value={form.categoria_id || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none" onChange={e => setForm({...form, categoria_id: e.target.value})} disabled={uploadingField !== null}>
@@ -436,7 +391,6 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
                             </div>
                         </React.Fragment>
                     )}
-                    
                     <button type="submit" className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl mt-4 shadow-lg disabled:opacity-50" disabled={uploadingField !== null}>GUARDAR {type === 'category' ? 'CATEGORÍA' : 'PRODUCTO'}</button>
                     <button type="button" onClick={onClose} className="w-full text-gray-400 py-2 hover:text-white transition-colors" disabled={uploadingField !== null}>Cancelar</button>
                 </form>
@@ -445,59 +399,45 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave, tiendaId}) 
     );
 };
 
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL (Cerebro Refactorizado)
 export default function Admin() {
     const [searchParams] = useSearchParams();
     const parametroTienda = searchParams.get('tienda');
+    const premium = isPremiumDomain();
     const cleanHostname = getCleanDomain();
+
+    // HOOKS ARQUITECTÓNICOS
+    const { tiendaId, isAuthenticated, loadingAuth, authError, login, logout } = useAdminAuth(parametroTienda);
     
-    const isPremiumDomain = cleanHostname !== 'localhost' 
-                         && cleanHostname !== '127.0.0.1' 
-                         && !cleanHostname.endsWith('netlify.app')
-                         && !cleanHostname.endsWith('netlify.com')
-                         && !cleanHostname.endsWith('vercel.app');
+    const {
+        tienda, updateStoreConfig, categories, updateLocalCategories, products, updateLocalProducts,
+        orders, setOrders, historyOrders, stats, loadingData,
+        hasNewOrder, setHasNewOrder, metricsDateFilter, setMetricsDateFilter, fetchTiendaData, loadHistory
+    } = useAdminData(tiendaId, isAuthenticated);
 
-    const [tiendaError, setTiendaError] = useState(null);
-    const [tiendaId, setTiendaId] = useState(null);
-
-    // 🔐 Auth real con Supabase (reemplaza el PIN)
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // ESTADO DE UI
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loginError, setLoginError] = useState(false);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [loginErrorState, setLoginErrorState] = useState(false);
 
     const [view, setView] = useState('orders');
-    const [tienda, setTienda] = useState(null);
-    const [categories, setCategories] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [orders, setOrders] = useState([]);
-    
     const [activeCat, setActiveCat] = useState('Todas');
     const [search, setSearch] = useState('');
     const [modal, setModal] = useState({open: false, type: null, editItem: null});
-    const [loading, setLoading] = useState(true);
     const [ticketOrder, setTicketOrder] = useState(null);
     const [toastMsg, setToastMsg] = useState('');
-    const [hasNewOrder, setHasNewOrder] = useState(false);
-
-    // Estados para las Métricas Avanzadas
-    const [metricsDateFilter, setMetricsDateFilter] = useState('30_dias');
-    const [stats, setStats] = useState({ ventas: 0, cancelados: 0, top5: [], bottom5: [] });
     
-    // Estados para el Historial
-    const [historyOrders, setHistoryOrders] = useState([]); 
-    const [historyFilterDays, setHistoryFilterDays] = useState(1);
-    const [historyFilterStatus, setHistoryFilterStatus] = useState('todos');
-
-    // Formulario de Ajustes
     const [configForm, setConfigForm] = useState(null);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [logoUploadProgress, setLogoUploadProgress] = useState(0); 
+    const [historyFilterDays, setHistoryFilterDays] = useState(1);
+    const [historyFilterStatus, setHistoryFilterStatus] = useState('todos');
 
     const [autoPrint, setAutoPrint] = useState(() => localStorage.getItem('saas_autoprint') === 'true');
     const autoPrintRef = useRef(autoPrint);
 
-    // Inyectar CSS global al montar (Ticket CSS)
+    // Inyección de estilos globales para el Ticket
     useEffect(() => {
         const style = document.createElement('style');
         style.innerHTML = `
@@ -522,399 +462,56 @@ export default function Admin() {
         return () => document.head.removeChild(style);
     }, []);
 
-    // 1. Resolver Tienda ID y verificar si ya hay sesión activa de Supabase Auth con permiso
+    // Sincronizar configuracion local y eventos
     useEffect(() => {
-        const resolveTienda = async () => {
-            try {
-                let data = null;
-                if (isPremiumDomain) {
-                    const { data: resData, error } = await supabase.from('tiendas').select('id, slug').ilike('dominio_personal', cleanHostname).maybeSingle();
-                    if (error) throw error;
-                    if (!resData) throw new Error("Dominio no asignado");
-                    data = resData;
-                } else {
-                    if (!parametroTienda) throw new Error("Falta parámetro");
-                    let query = supabase.from('tiendas').select('id, slug');
-                    query = /^\d+$/.test(parametroTienda) ? query.eq('id', parseInt(parametroTienda)) : query.eq('slug', parametroTienda);
-                    const { data: resData, error } = await query.single();
-                    if (error || !resData) throw new Error("Tienda no encontrada");
-                    data = resData;
-                }
-                setTiendaId(data.id);
+        if (tienda) setConfigForm(tienda);
+    }, [tienda]);
 
-                // Si ya hay una sesión de Supabase Auth activa, verificamos que tenga permiso sobre esta tienda
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const { data: perfil } = await supabase
-                        .from('perfiles')
-                        .select('rol, tienda_id')
-                        .eq('id', session.user.id)
-                        .single();
-
-                    if (perfil && (perfil.rol === 'superadmin' || perfil.tienda_id === data.id)) {
-                        setIsAuthenticated(true);
-                    }
-                }
-                setLoading(false);
-            } catch (err) {
-                setTiendaError(err.message);
-                setLoading(false);
-            }
-        };
-        resolveTienda();
-    }, [isPremiumDomain, cleanHostname, parametroTienda]);
-    
     useEffect(() => {
         localStorage.setItem('saas_autoprint', autoPrint);
         autoPrintRef.current = autoPrint;
     }, [autoPrint]);
 
+    // Listener para Sonido e Impresión Automática emitido desde el Hook de Datos
+    useEffect(() => {
+        const handleNewOrderEvent = (e) => {
+            alertSound.play().catch(err => console.log("Audio block:", err));
+            if (autoPrintRef.current) {
+                setTicketOrder(e.detail);
+                setTimeout(() => window.print(), 800);
+            }
+        };
+        window.addEventListener('newOrderReceived', handleNewOrderEvent);
+        return () => window.removeEventListener('newOrderReceived', handleNewOrderEvent);
+    }, []);
+
     const showToast = useCallback((msg) => { 
         setToastMsg(msg); setTimeout(() => setToastMsg(''), 3000); 
     }, []);
 
-    const fetchTiendaData = useCallback(async () => {
-        if (!tiendaId) return;
-        
-        const { data: t } = await supabase.from('tiendas').select('*').eq('id', tiendaId).single();
-        setTienda(t);
-        setConfigForm(t);
-        
-        const { data: cats } = await supabase.from('categorias').select('*').eq('tienda_id', tiendaId).order('orden');
-        const { data: prods } = await supabase.from('menu_items').select('*').eq('tienda_id', tiendaId).order('orden');
-        
-        setCategories(cats || []); 
-        setProducts(prods || []);
-        
-        const { data: ords } = await supabase.from('pedidos').select('*').eq('tienda_id', tiendaId).eq('estado', 'pendiente').order('created_at', {ascending: false});
-        setOrders(ords || []);
-        
-        setLoading(false);
-    }, [tiendaId]);
+    const acknowledgeNewOrder = () => { 
+        setHasNewOrder(false); 
+        alertSound.pause(); 
+        alertSound.currentTime = 0; 
+    };
 
-    // Función para Cargar Métricas con Fechas Específicas
-    const loadStats = useCallback(async () => {
-        if (!tiendaId || !products.length) return;
-
-        try {
-            const now = new Date();
-            let startDate = new Date();
-            let endDate = new Date();
-
-            if (metricsDateFilter === 'semana') {
-                startDate.setDate(now.getDate() - now.getDay());
-                startDate.setHours(0,0,0,0);
-            } else if (metricsDateFilter === 'mes_actual') {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else if (metricsDateFilter === 'mes_anterior') {
-                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-            } else {
-                startDate.setDate(now.getDate() - 30);
-            }
-
-            const { data, error } = await supabase
-                .from('pedidos')
-                .select('estado, total_final, detalle_json, created_at') 
-                .eq('tienda_id', tiendaId)
-                .gte('created_at', startDate.toISOString())
-                .lte('created_at', endDate.toISOString());
-
-            if (error || !data) return;
-
-            let totalVentas = 0; 
-            let totalCancelados = 0; 
-            let productsCount = {};
-
-            data.forEach(p => {
-                if (p.estado === 'despachado') {
-                    totalVentas += parseFloat(p.total_final) || 0;
-                    const items = Array.isArray(p.detalle_json) ? p.detalle_json : (typeof p.detalle_json === 'string' ? JSON.parse(p.detalle_json) : []);
-                    items.forEach(item => { productsCount[item.nombre] = (productsCount[item.nombre] || 0) + (item.qty || 1); });
-                } else if (p.estado === 'cancelado') {
-                    totalCancelados += 1;
-                }
-            });
-
-            const allStats = products.map(p => ({ nombre: p.nombre, vendidos: productsCount[p.nombre] || 0 }));
-            allStats.sort((a,b) => b.vendidos - a.vendidos);
-
-            const top5 = allStats.slice(0, 5);
-            const bottom5 = [...allStats].filter(item => item.vendidos > 0).reverse().slice(0, 5); 
-
-            setStats({ ventas: totalVentas, cancelados: totalCancelados, top5: top5, bottom5: bottom5 });
-        } catch (e) { console.error("Error al cargar stats:", e); }
-    }, [tiendaId, products, metricsDateFilter]);
-
-    // Cargar Historial Separado
-    const loadHistory = useCallback(async () => {
-        if(!tiendaId) return;
-        const d60 = new Date(); d60.setDate(d60.getDate() - 60);
-        const { data } = await supabase
-            .from('pedidos')
-            .select('id, cliente_nombre, estado, total_final, created_at')
-            .eq('tienda_id', tiendaId)
-            .gte('created_at', d60.toISOString())
-            .order('created_at', { ascending: false });
-        if(data) setHistoryOrders(data);
-    }, [tiendaId]);
-
-    // Orquestador de carga inicial post-login
-    useEffect(() => {
-        if (isAuthenticated && tiendaId) {
-            setLoading(true); // Reinicia carga al iniciar sesión
-            fetchTiendaData();
-            loadHistory();
-            
-            const ordersChannel = supabase.channel('admin_orders_' + tiendaId)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `tienda_id=eq.${tiendaId}` }, (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        setOrders(prev => [payload.new, ...prev]);
-                        setHasNewOrder(true);
-                        alertSound.play().catch(e=>console.log("Audio block"));
-                        if (autoPrintRef.current) {
-                            setTicketOrder(payload.new);
-                            setTimeout(() => window.print(), 800);
-                        }
-                    } else if (payload.eventType === 'UPDATE' && payload.new.estado !== 'pendiente') {
-                        setOrders(prev => prev.filter(o => o.id !== payload.new.id));
-                    }
-                }).subscribe();
-                
-            return () => { supabase.removeChannel(ordersChannel); };
-        }
-    }, [isAuthenticated, tiendaId, fetchTiendaData, loadHistory]);
-
-    useEffect(() => {
-        if (isAuthenticated && products.length > 0) {
-            loadStats();
-        }
-    }, [metricsDateFilter, products, loadStats, isAuthenticated]);
-
-    const acknowledgeNewOrder = () => { setHasNewOrder(false); alertSound.pause(); alertSound.currentTime = 0; };
-
-    // 🔐 Login real con Supabase Auth + verificación de permiso sobre la tienda actual
-    const handleLogin = async (e) => {
+    // ACCIONES DE LOGIN
+    const handleLoginSubmit = async (e) => {
         e.preventDefault();
-        setLoginError(false);
-        setLoading(true);
-
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: password
-        });
-
-        if (authError || !authData.user) {
-            setLoginError(true);
-            setLoading(false);
-            return;
-        }
-
-        const { data: perfil, error: perfilError } = await supabase
-            .from('perfiles')
-            .select('rol, tienda_id')
-            .eq('id', authData.user.id)
-            .single();
-
-        if (perfilError || !perfil) {
-            setLoginError(true);
-            setLoading(false);
-            await supabase.auth.signOut();
-            return;
-        }
-
-        const tienePermiso = perfil.rol === 'superadmin' || perfil.tienda_id === tiendaId;
-
-        if (!tienePermiso) {
-            setLoginError(true);
-            setLoading(false);
-            await supabase.auth.signOut();
-            return;
-        }
-
-        setIsAuthenticated(true);
-    };
-
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        setIsAuthenticated(false);
-        setEmail('');
-        setPassword('');
-    };
-
-    const handleLogoUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            showToast("Solo se permiten imágenes (PNG, JPG)"); return;
-        }
-
-        setUploadingLogo(true);
-        setLogoUploadProgress(10);
-
-        const progressInterval = setInterval(() => {
-            setLogoUploadProgress(prev => (prev > 90 ? 90 : prev + 15));
-        }, 300);
-
+        setIsLoggingIn(true);
+        setLoginErrorState(false);
         try {
-            if (configForm.logo_url) {
-                const urlParts = configForm.logo_url.split('/');
-                const oldFileName = urlParts[urlParts.length - 1];
-                if (oldFileName) await supabase.storage.from('logos').remove([oldFileName]);
-            }
-
-            const fileExt = file.name.split('.').pop();
-            const fileName = `logo_${tiendaId}_${Date.now()}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
-            if (uploadError) throw uploadError;
-
-            clearInterval(progressInterval);
-            setLogoUploadProgress(100);
-
-            const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName);
-
-            setTimeout(() => {
-                setConfigForm(prev => ({ ...prev, logo_url: publicUrl }));
-                showToast('Logo subido exitosamente.');
-                setUploadingLogo(false);
-                setLogoUploadProgress(0);
-            }, 500);
+            await login(email, password);
         } catch (err) {
-            clearInterval(progressInterval);
-            showToast('Error al subir imagen.');
-            setUploadingLogo(false); setLogoUploadProgress(0);
+            setLoginErrorState(true);
+        } finally {
+            setIsLoggingIn(false);
         }
     };
 
-    const handleRemoveLogo = async () => {
-        if(!confirm("¿Eliminar logo actual de la tienda?")) return;
-        try {
-            if (configForm.logo_url) {
-                const urlParts = configForm.logo_url.split('/');
-                const oldFileName = urlParts[urlParts.length - 1];
-                if (oldFileName) await supabase.storage.from('logos').remove([oldFileName]);
-            }
-            setConfigForm(prev => ({ ...prev, logo_url: null }));
-            showToast("Logo eliminado. Guarda los ajustes.");
-        } catch (e) { showToast("Error al borrar el logo."); }
-    };
-
-    const saveStoreSettings = async (e) => {
-        e.preventDefault();
-        
-        let formattedSlug = configForm.slug ? configForm.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') : null;
-
-        const updateData = {
-            nombre: configForm.nombre, telefono_whatsapp: configForm.telefono_whatsapp, logo_url: configForm.logo_url,
-            mensaje_bienvenida: configForm.mensaje_bienvenida, mensaje_cerrado: configForm.mensaje_cerrado,
-            slug: formattedSlug, dominio_personal: configForm.dominio_personal?.trim().toLowerCase(),
-            color_primario: configForm.color_primario, color_secundario: configForm.color_secundario, 
-            color_fondo: configForm.color_fondo, color_delivery: configForm.color_delivery, color_pickup: configForm.color_pickup,
-            latitud: parseFloat(configForm.latitud), longitud: parseFloat(configForm.longitud),
-            max_delivery_radius: parseFloat(configForm.max_delivery_radius),
-            delivery_tiers: Array.isArray(configForm.delivery_tiers) ? configForm.delivery_tiers : []
-        };
-
-        try {
-            const { error } = await supabase.from('tiendas').update(updateData).eq('id', tiendaId);
-            if (error) {
-                if (error.code === '23505') throw new Error("Ese SLUG o Dominio ya está en uso por otra tienda.");
-                throw error;
-            }
-            setTienda({...tienda, ...updateData});
-            setConfigForm({...configForm, slug: formattedSlug});
-            showToast('¡Ajustes guardados correctamente!');
-        } catch (err) { alert(err.message || 'Error al guardar ajustes.'); }
-    };
-
-    const handleTierChange = (index, field, value) => {
-        const safeTiers = Array.isArray(configForm.delivery_tiers) ? configForm.delivery_tiers : [];
-        const newTiers = [...safeTiers];
-        newTiers[index] = { ...newTiers[index] };
-        newTiers[index][field] = field === 'name' ? value : parseFloat(value) || 0;
-        setConfigForm({...configForm, delivery_tiers: newTiers});
-    };
-
-    const handleCompleteOrder = async (id) => { 
-        setOrders(prev => prev.filter(o => o.id !== id)); 
-        await supabase.from('pedidos').update({ estado: 'despachado' }).eq('id', id); 
-        loadHistory();
-    };
-
-    const handleCancelOrder = async (id) => { 
-        setOrders(prev => prev.filter(o => o.id !== id)); 
-        await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id); 
-        showToast("Pedido Cancelado");
-        loadHistory();
-    };
-
-    const toggleStore = async () => { 
-        const newState = !tienda.abierto; 
-        setTienda({...tienda, abierto: newState}); 
-        try {
-            const { error } = await supabase.from('tiendas').update({ abierto: newState }).eq('id', tiendaId); 
-            if(error) throw error;
-            showToast(newState ? "✅ Tienda ABIERTA" : "🛑 Tienda CERRADA");
-        } catch (err) {
-            showToast("Error de red."); setTienda({...tienda, abierto: !newState});
-        }
-    };
-    
-    const toggleProduct = async (id, currentStatus) => { 
-        setProducts(prev => prev.map(p => p.id === id ? { ...p, disponible: !currentStatus } : p)); 
-        await supabase.from('menu_items').update({ disponible: !currentStatus }).eq('id', id); 
-    };
-    
-    const guardarPrecio = async (id, nuevoPrecio) => { 
-        if(isNaN(nuevoPrecio)) return; 
-        setProducts(prev => prev.map(p => p.id === id ? { ...p, precio: nuevoPrecio } : p));
-        await supabase.from('menu_items').update({ precio: nuevoPrecio }).eq('id', id); 
-    };
-    
-    const deleteProduct = async (item) => { 
-        if(!confirm("¿Borrar producto?")) return; 
-        if (item.image_url) {
-            const urlParts = item.image_url.split('/');
-            await supabase.storage.from('productos').remove([urlParts[urlParts.length - 1]]);
-        }
-        if (item.video_url) {
-            const urlParts = item.video_url.split('/');
-            await supabase.storage.from('productos').remove([urlParts[urlParts.length - 1]]);
-        }
-        setProducts(prev => prev.filter(p => p.id !== item.id)); 
-        await supabase.from('menu_items').delete().eq('id', item.id); 
-    };
-    
-    const deleteCategory = async (id) => { 
-        if(!confirm("¿Borrar categoría y TODOS sus productos?")) return; 
-        await supabase.from('categorias').delete().eq('id', id); 
-        setCategories(prev => prev.filter(c => c.id !== id)); 
-    };
-    
-    const saveItem = async (data, editId) => {
-        if (editId) {
-            const table = modal.type === 'category' ? 'categorias' : 'menu_items';
-            await supabase.from(table).update(data).eq('id', editId);
-        } else {
-            if (modal.type === 'category') {
-                const maxOrd = categories.length > 0 ? Math.max(...categories.map(c => c.orden)) : 0;
-                await supabase.from('categorias').insert([{ ...data, tienda_id: tiendaId, orden: maxOrd + 1 }]);
-            } else {
-                const maxOrd = products.length > 0 ? Math.max(...products.map(p => p.orden)) : 0;
-                await supabase.from('menu_items').insert([{ ...data, tienda_id: tiendaId, disponible: true, orden: maxOrd + 1 }]);
-            }
-        }
-        fetchTiendaData();
-    };
-
-    const handlePrint = (order) => { setTicketOrder(order); setTimeout(() => { window.print(); }, 500); };
-
-    // BÚSQUEDA Y FILTRADO INVENTARIO
+    // BÚSQUEDA Y FILTRADO INVENTARIO (Local)
     const processedInventory = useMemo(() => {
         if (!categories.length) return [];
-        
         if (search.trim() !== '') {
             const searchLower = search.toLowerCase();
             return categories.map(cat => {
@@ -939,30 +536,155 @@ export default function Admin() {
         }
     }, [categories, products, activeCat, search]);
 
-    // FILTRADO HISTORIAL TABLA
     const filteredHistoryList = useMemo(() => {
         const now = new Date();
         return historyOrders.filter(o => {
             if (o.estado === 'pendiente') return false; 
             if (historyFilterStatus !== 'todos' && o.estado !== historyFilterStatus) return false;
             const orderDate = new Date(o.created_at);
-            const diffTime = Math.abs(now - orderDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil(Math.abs(now - orderDate) / (1000 * 60 * 60 * 24));
             return diffDays <= historyFilterDays;
         });
     }, [historyOrders, historyFilterDays, historyFilterStatus]);
 
-    // RENDERIZADO PANTALLA CARGA/ERROR
-    if (tiendaError) return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-950 text-white text-center">
-            <div className="text-6xl mb-4">🛑</div>
-            <h1 className="text-2xl font-black mb-2 uppercase">Acceso Denegado</h1>
-            <p className="text-gray-400">{tiendaError}</p>
-        </div>
-    );
-    if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-900"><div className="loader"></div></div>;
+    // ACCIONES CRUD A BASE DE DATOS DIRECTA
+    const handleCompleteOrder = async (id) => { 
+        setOrders(prev => prev.filter(o => o.id !== id)); 
+        await supabase.from('pedidos').update({ estado: 'despachado' }).eq('id', id); 
+        loadHistory();
+    };
 
-    // 🔐 PANTALLA LOGIN (email + contraseña real de Supabase Auth)
+    const handleCancelOrder = async (id) => { 
+        setOrders(prev => prev.filter(o => o.id !== id)); 
+        await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id); 
+        showToast("Pedido Cancelado");
+        loadHistory();
+    };
+
+    const toggleStore = async () => { 
+        const newState = !tienda.abierto; 
+        updateStoreConfig({ abierto: newState });
+        try {
+            const { error } = await supabase.from('tiendas').update({ abierto: newState }).eq('id', tiendaId); 
+            if(error) throw error;
+            showToast(newState ? "✅ Tienda ABIERTA" : "🛑 Tienda CERRADA");
+        } catch (err) {
+            showToast("Error de red."); 
+            updateStoreConfig({ abierto: !newState });
+        }
+    };
+    
+    const toggleProduct = async (id, currentStatus) => { 
+        updateLocalProducts(products.map(p => p.id === id ? { ...p, disponible: !currentStatus } : p)); 
+        await supabase.from('menu_items').update({ disponible: !currentStatus }).eq('id', id); 
+    };
+    
+    const guardarPrecio = async (id, nuevoPrecio) => { 
+        if(isNaN(nuevoPrecio)) return; 
+        updateLocalProducts(products.map(p => p.id === id ? { ...p, precio: nuevoPrecio } : p));
+        await supabase.from('menu_items').update({ precio: nuevoPrecio }).eq('id', id); 
+    };
+    
+    const deleteProduct = async (item) => { 
+        if(!confirm("¿Borrar producto?")) return; 
+        if (item.image_url) await supabase.storage.from('productos').remove([item.image_url.split('/').pop()]);
+        if (item.video_url) await supabase.storage.from('productos').remove([item.video_url.split('/').pop()]);
+        updateLocalProducts(products.filter(p => p.id !== item.id)); 
+        await supabase.from('menu_items').delete().eq('id', item.id); 
+    };
+    
+    const deleteCategory = async (id) => { 
+        if(!confirm("¿Borrar categoría y TODOS sus productos?")) return; 
+        await supabase.from('categorias').delete().eq('id', id); 
+        updateLocalCategories(categories.filter(c => c.id !== id)); 
+    };
+    
+    const saveItem = async (data, editId) => {
+        if (editId) {
+            const table = modal.type === 'category' ? 'categorias' : 'menu_items';
+            await supabase.from(table).update(data).eq('id', editId);
+        } else {
+            if (modal.type === 'category') {
+                const maxOrd = categories.length > 0 ? Math.max(...categories.map(c => c.orden)) : 0;
+                await supabase.from('categorias').insert([{ ...data, tienda_id: tiendaId, orden: maxOrd + 1 }]);
+            } else {
+                const maxOrd = products.length > 0 ? Math.max(...products.map(p => p.orden)) : 0;
+                await supabase.from('menu_items').insert([{ ...data, tienda_id: tiendaId, disponible: true, orden: maxOrd + 1 }]);
+            }
+        }
+        fetchTiendaData();
+    };
+
+    const handlePrint = (order) => { setTicketOrder(order); setTimeout(() => window.print(), 500); };
+
+    // FUNCIONES DE AJUSTES Y LOGOS
+    const handleLogoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return showToast("Solo se permiten imágenes (PNG, JPG)");
+        setUploadingLogo(true);
+        setLogoUploadProgress(10);
+        const progressInterval = setInterval(() => setLogoUploadProgress(p => p > 90 ? 90 : p + 15), 300);
+        try {
+            if (configForm.logo_url) await supabase.storage.from('logos').remove([configForm.logo_url.split('/').pop()]);
+            const fileName = `logo_${tiendaId}_${Date.now()}.${file.name.split('.').pop()}`;
+            const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
+            if (uploadError) throw uploadError;
+            clearInterval(progressInterval);
+            setLogoUploadProgress(100);
+            const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName);
+            setTimeout(() => {
+                setConfigForm(prev => ({ ...prev, logo_url: publicUrl }));
+                showToast('Logo subido exitosamente.');
+                setUploadingLogo(false); setLogoUploadProgress(0);
+            }, 500);
+        } catch (err) {
+            clearInterval(progressInterval);
+            showToast('Error al subir imagen.');
+            setUploadingLogo(false); setLogoUploadProgress(0);
+        }
+    };
+
+    const handleRemoveLogo = async () => {
+        if(!confirm("¿Eliminar logo actual?")) return;
+        try {
+            if (configForm.logo_url) await supabase.storage.from('logos').remove([configForm.logo_url.split('/').pop()]);
+            setConfigForm(prev => ({ ...prev, logo_url: null }));
+            showToast("Logo eliminado. Guarda los ajustes.");
+        } catch (e) { showToast("Error al borrar el logo."); }
+    };
+
+    const saveStoreSettings = async (e) => {
+        e.preventDefault();
+        let formattedSlug = configForm.slug ? configForm.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') : null;
+        const updateData = {
+            nombre: configForm.nombre, telefono_whatsapp: configForm.telefono_whatsapp, logo_url: configForm.logo_url,
+            mensaje_bienvenida: configForm.mensaje_bienvenida, mensaje_cerrado: configForm.mensaje_cerrado,
+            slug: formattedSlug, dominio_personal: configForm.dominio_personal?.trim().toLowerCase(),
+            color_primario: configForm.color_primario, color_secundario: configForm.color_secundario, 
+            color_fondo: configForm.color_fondo, color_delivery: configForm.color_delivery, color_pickup: configForm.color_pickup,
+            latitud: parseFloat(configForm.latitud), longitud: parseFloat(configForm.longitud), max_delivery_radius: parseFloat(configForm.max_delivery_radius),
+            delivery_tiers: Array.isArray(configForm.delivery_tiers) ? configForm.delivery_tiers : []
+        };
+        try {
+            const { error } = await supabase.from('tiendas').update(updateData).eq('id', tiendaId);
+            if (error) throw error.code === '23505' ? new Error("SLUG o Dominio ya en uso.") : error;
+            updateStoreConfig(updateData);
+            setConfigForm({...configForm, slug: formattedSlug});
+            showToast('¡Ajustes guardados correctamente!');
+        } catch (err) { alert(err.message || 'Error al guardar.'); }
+    };
+
+    const handleTierChange = (index, field, value) => {
+        const newTiers = [...(configForm.delivery_tiers || [])];
+        newTiers[index] = { ...newTiers[index] };
+        newTiers[index][field] = field === 'name' ? value : parseFloat(value) || 0;
+        setConfigForm({...configForm, delivery_tiers: newTiers});
+    };
+
+    // RENDERIZADO
+    if (loadingAuth || (isAuthenticated && loadingData)) return <div className="min-h-screen flex items-center justify-center bg-gray-900"><div className="loader"></div></div>;
+    if (authError) return <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-950 text-white text-center"><div className="text-6xl mb-4">🛑</div><h1 className="text-2xl font-black mb-2 uppercase">Acceso Denegado</h1><p className="text-gray-400">{authError}</p></div>;
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4 bg-gray-950 text-white">
@@ -970,11 +692,13 @@ export default function Admin() {
                     <div className="w-16 h-16 bg-orange-600/20 text-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-orange-600/30"><Icons.Lock /></div>
                     <h1 className="text-2xl font-black tracking-wide mb-2">Panel Administrativo</h1>
                     <p className="text-gray-400 text-sm mb-6">Ingresa con tu correo y contraseña</p>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <input type="email" required placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={loading} />
-                        <input type="password" required placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={loading} />
-                        {loginError && <p className="text-red-500 text-xs font-bold">Correo o contraseña incorrectos, o no tienes acceso a esta tienda.</p>}
-                        <button type="submit" disabled={loading} className="w-full bg-orange-600 hover:bg-orange-500 font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-95 disabled:opacity-50">INGRESAR AL PANEL</button>
+                    <form onSubmit={handleLoginSubmit} className="space-y-4">
+                        <input type="email" required placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={isLoggingIn} />
+                        <input type="password" required placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={isLoggingIn} />
+                        {loginErrorState && <p className="text-red-500 text-xs font-bold">Credenciales incorrectas o sin acceso a esta tienda.</p>}
+                        <button type="submit" disabled={isLoggingIn} className="w-full bg-orange-600 hover:bg-orange-500 font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-95 disabled:opacity-50">
+                            {isLoggingIn ? 'Verificando...' : 'INGRESAR AL PANEL'}
+                        </button>
                     </form>
                 </div>
             </div>
@@ -983,9 +707,8 @@ export default function Admin() {
 
     const safeTiers = configForm && Array.isArray(configForm.delivery_tiers) ? configForm.delivery_tiers : [];
     const identificador = tienda?.slug || tiendaId;
-    const linkMenuQR = isPremiumDomain ? `https://${cleanHostname}/menu` : `https://${window.location.hostname}/menu?tienda=${identificador}`;
+    const linkMenuQR = premium ? `https://${cleanHostname}/menu` : `https://${window.location.hostname}/menu?tienda=${identificador}`;
 
-    // PANEL PRINCIPAL
     return (
         <div className="pb-20 text-white font-sans bg-gray-900 min-h-screen">
             {toastMsg && <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-[9999] font-bold animate-card">{toastMsg}</div>}
@@ -1025,7 +748,7 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        <button onClick={handleLogout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/50 px-3 py-2 rounded-lg text-xs font-bold transition-all">SALIR</button>
+                        <button onClick={logout} className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/50 px-3 py-2 rounded-lg text-xs font-bold transition-all">SALIR</button>
                     </div>
                 </div>
                 
@@ -1037,7 +760,6 @@ export default function Admin() {
                 </div>
             </header>
 
-            {/* VISTA PEDIDOS */}
             {view === 'orders' && (
                 <div className="p-4 animate-card max-w-2xl mx-auto w-full">
                     <h2 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Pedidos Entrantes</h2>
@@ -1049,7 +771,6 @@ export default function Admin() {
                 </div>
             )}
 
-            {/* VISTA MÉTRICAS */}
             {view === 'stats' && (
                 <div className="p-4 animate-card max-w-4xl mx-auto space-y-6 w-full">
                     <div className="flex flex-col sm:flex-row justify-between sm:items-end mb-4 gap-4">
@@ -1167,7 +888,6 @@ export default function Admin() {
                 </div>
             )}
 
-            {/* VISTA INVENTARIO */}
             {view === 'inventory' && (
                 <div className="p-4 animate-card max-w-4xl mx-auto w-full">
                     <div className="sticky top-[130px] z-40 bg-gray-900/95 backdrop-blur py-3 -mx-4 px-4 border-b border-gray-800 flex flex-col gap-3">
@@ -1253,12 +973,10 @@ export default function Admin() {
                 </div>
             )}
 
-            {/* VISTA AJUSTES */}
             {view === 'settings' && configForm && (
                 <div className="p-4 animate-card max-w-2xl mx-auto space-y-6 w-full">
                     <form onSubmit={saveStoreSettings}>
                         
-                        {/* URLS Y DOMINIO */}
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Identidad Web</h3>
                             <div className="space-y-4">
@@ -1278,7 +996,6 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        {/* LOGO CON BORRAR */}
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Logotipo del Restaurante</h3>
                             <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -1314,7 +1031,6 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        {/* GENERALES */}
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Datos Generales</h3>
                             <div className="space-y-4">
@@ -1325,7 +1041,6 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        {/* CODIGO QR */}
                         <div className="bg-gray-800 p-6 rounded-xl border border-orange-500/40 shadow-xl mb-6 text-center">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Código QR del Menú Digital</h3>
                             <p className="text-gray-400 text-xs mb-4">Apunta a: {linkMenuQR}</p>
@@ -1337,7 +1052,6 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        {/* COLORES EXPLICADOS */}
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Apariencia (Colores App Clientes)</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
@@ -1371,15 +1085,14 @@ export default function Admin() {
                             </div>
                         </div>
 
-                        {/* GEOLOCALIZACION Y ENVIOS */}
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Ubicación y Costos de Envío (GPS)</h3>
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div><label className="block text-gray-400 text-xs mb-1">Latitud Origen</label><input type="number" step="any" required value={configForm.latitud} onChange={e=>setConfigForm({...configForm, latitud: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
-                                    <div><label className="block text-gray-400 text-xs mb-1">Longitud Origen</label><input type="number" step="any" required value={configForm.longitud} onChange={e=>setConfigForm({...configForm, longitud: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
+                                    <div><label className="block text-gray-400 text-xs mb-1">Latitud Origen</label><input type="number" step="any" required value={configForm.latitud || 0} onChange={e=>setConfigForm({...configForm, latitud: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
+                                    <div><label className="block text-gray-400 text-xs mb-1">Longitud Origen</label><input type="number" step="any" required value={configForm.longitud || 0} onChange={e=>setConfigForm({...configForm, longitud: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
                                 </div>
-                                <div><label className="block text-gray-400 text-xs mb-1">Radio Máximo de Entrega (km)</label><input type="number" step="0.1" required value={configForm.max_delivery_radius} onChange={e=>setConfigForm({...configForm, max_delivery_radius: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
+                                <div><label className="block text-gray-400 text-xs mb-1">Radio Máximo de Entrega (km)</label><input type="number" step="0.1" required value={configForm.max_delivery_radius || 0} onChange={e=>setConfigForm({...configForm, max_delivery_radius: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none" /></div>
                                 
                                 <div className="bg-gray-900 p-3 rounded-lg border border-gray-700 w-full overflow-hidden">
                                     <label className="block text-gray-400 text-xs mb-3 font-bold">Zonas y Tarifas de Envío</label>
@@ -1403,7 +1116,7 @@ export default function Admin() {
                 </div>
             )}
 
-            <Modal isOpen={modal.open} type={modal.type} editItem={modal.editItem} categories={categories} onClose={()=>setModal({open:false, type:null, editItem:null})} onSave={saveItem} tiendaId={tiendaId}/>
+            <Modal isOpen={modal.open} type={modal.type} editItem={modal.editItem} categories={categories} onClose={()=>setModal({open:false, type:null, editItem:null})} onSave={saveItem} />
             <Ticket order={ticketOrder} tienda={tienda}/>
         </div>
     );

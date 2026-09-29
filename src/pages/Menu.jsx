@@ -1,85 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 
-// ==========================================
-// UTILIDADES
-// ==========================================
-const limpiarTexto = (t) => t ? String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").trim() : "";
+// Componentes y Utilidades Propias
+import { limpiarTexto, calculateDistance } from '../utils/helpers';
+import { Icons } from '../components/ui/Icons';
+import { Button } from '../components/ui/Button';
+import { MediaModal } from '../components/ui/MediaModal';
+import { DynamicStyles } from '../components/ui/DynamicStyles';
 
-const calculateDistance = (lat1, lon1, lat2, lon2) => { 
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180; 
-    const dLon = (lon2 - lon1) * Math.PI / 180; 
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    return R * c; 
-};
+// hooks
+import { useCart } from '../hooks/useCart';
+import { useStoreData } from '../hooks/useStoreData';
+import { useCheckout } from '../hooks/useCheckout';
 
-// ==========================================
-// COMPONENTES REUTILIZABLES (Iconos y Botones)
-// ==========================================
-const Icon = memo(({ d, size = 28, className = "" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d={d} />
-    </svg>
-));
-
-const Icons = {
-    Cart: (p) => <svg {...p} width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>, 
-    Map: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>, 
-    Check: (p) => <Icon {...p} d="M20 6L9 17l-5-5" />, 
-    Plus: (p) => <Icon {...p} d="M12 5v14M5 12h14" />, 
-    Minus: (p) => <Icon {...p} d="M5 12h14" />, 
-    Send: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>, 
-    Info: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>, 
-    Cash: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><line x1="12" y1="7" x2="12" y2="21"></line><path d="M16.5 13.5h.01"></path><path d="M7.5 13.5h.01"></path></svg>, 
-    Phone: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>, 
-    Card: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>, 
-    Search: (p) => <svg {...p} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>, 
-    Clock: (p) => <svg {...p} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>, 
-    X: (p) => <svg {...p} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-    Eye: (p) => <svg {...p} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
-    ShareNode: (p) => <svg {...p} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-};
-
-const Button = memo(({ onClick, children, variant = "primary", className = "", disabled = false, icon: IconComp, style }) => { 
-    const variants = { 
-        primary: "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow-lg active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none", 
-        secondary: "bg-gray-800 text-white hover:bg-gray-700", 
-        danger: "bg-red-100 text-red-800 border border-red-200" 
-    }; 
-    return ( 
-        <button 
-            type="button" 
-            onClick={onClick} 
-            disabled={disabled} 
-            className={`px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all text-lg ${variants[variant]} ${className}`}
-            style={style}
-        > 
-            {IconComp && <IconComp size={28} />} {children} 
-        </button> 
-    ); 
-});
-
-const MediaModal = ({ media, onClose }) => {
-    if (!media) return null;
-    const cleanUrl = String(media.url).trim();
-    return createPortal(
-        <div className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in-down" onClick={onClose}>
-            <div className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-gray-700 flex items-center justify-center min-h-[250px]" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 z-50 bg-black/70 text-white p-2 rounded-full hover:bg-white hover:text-black transition-colors border border-white/20 shadow-lg"><Icons.X /></button>
-                {media.type === 'video' ? (
-                    <video src={cleanUrl} className="w-full h-auto max-h-[80vh] object-contain" autoPlay={true} loop={true} muted={true} playsInline={true} preload="metadata" />
-                ) : (
-                    <img src={cleanUrl} className="w-full h-auto max-h-[80vh] object-contain" alt="Vista del producto" loading="lazy" />
-                )}
-            </div>
-        </div>,
-        document.body
-    );
-};
 
 const ProductItem = memo(({ item, category, onAdd, config, onShowMedia }) => {
     const [conTodo, setConTodo] = useState(true);
@@ -236,167 +170,70 @@ const ProductItem = memo(({ item, category, onAdd, config, onShowMedia }) => {
 export default function Menu() {
     const [searchParams] = useSearchParams();
     const parametroTienda = searchParams.get('tienda');
-
-    // Estados de Tienda
-    const [storeConfig, setStoreConfig] = useState(null);
-    const [categoriesDB, setCategoriesDB] = useState([]);
-    const [menuItemsDB, setMenuItemsDB] = useState([]);
-    
-    // Estados UI
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorMsg, setErrorMsg] = useState(null);
-    const [activeMedia, setActiveMedia] = useState(null); 
     const categoriesRef = useRef(null);
+    const [activeMedia, setActiveMedia] = useState(null); 
+
+    // 1. CARGA DE DATOS (Tenant) - Reemplaza los useState duplicados
+    const {
+        storeConfig,
+        categoriesDB,
+        isLoading,
+        errorMsg,
+        activeCategory,
+        setActiveCategory,
+        searchTerm,
+        setSearchTerm,
+        processedMenu
+    } = useStoreData(parametroTienda);
     
-    const [whatsappFallbackUrl, setWhatsappFallbackUrl] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitText, setSubmitText] = useState("Confirmar Orden");
-    const [cartAnimate, setCartAnimate] = useState(false);
-    const [cart, setCart] = useState([]);
-    const [activeCategory, setActiveCategory] = useState("");
-    const [showCart, setShowCart] = useState(false);
-    const [notification, setNotification] = useState(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [showWaitModal, setShowWaitModal] = useState(false);
-    const [showDrinkUpsell, setShowDrinkUpsell] = useState(false);
-    
+    // 2. ESTADOS DEL CLIENTE Y PEDIDO (Deben existir antes de usar useCart)
     const [orderType, setOrderType] = useState('delivery'); 
     const [location, setLocation] = useState({ lat: null, lng: null, status: 'idle', shippingCost: 0, zoneName: '', distance: 0, allowed: false });
-    
     const [customer, setCustomer] = useState({ name: '', phone: '', customAnswers: {}, paymentMethod: '', paymentAmount: '', instructions: '', tip: '' });
 
-    // ESTILOS INYECTADOS
-    const InjectedStyles = () => (
-        <style>{`
-            :root {
-                --color-primary: ${storeConfig?.color_primario || '#f97316'};
-                --color-secondary: ${storeConfig?.color_secundario || '#ef4444'};
-                --color-bg: ${storeConfig?.color_fondo || '#111827'};
-            }
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            @keyframes fade-in-down { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: translateY(0); } }
-            @keyframes slide-up { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
-            .animate-fade-in-down { animation: fade-in-down 0.3s ease-out forwards; }
-            .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
-            .loader { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--color-primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            @keyframes electric-glow {
-                0% { box-shadow: 0 0 5px #fff, 0 0 10px #facc15, 0 0 20px #f97316; border-color: #ffffff; }
-                50% { box-shadow: 0 0 20px #fff, 0 0 30px #facc15, 0 0 50px #ef4444; border-color: #fef08a; }
-                100% { box-shadow: 0 0 5px #fff, 0 0 10px #facc15, 0 0 20px #f97316; border-color: #ffffff; }
-            }
-            .logo-electric { border-width: 6px; border-style: solid; animation: electric-glow 1.5s infinite alternate ease-in-out; }
-            @keyframes shine-metal { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
-            .text-metal-shine { background: linear-gradient(to right, #ca8a04 0%, #facc15 30%, #ffffff 50%, #facc15 70%, #ca8a04 100%); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: shine-metal 3s linear infinite; text-shadow: 0px 2px 4px rgba(0,0,0,0.3); }
-        `}</style>
-    );
+    // Estados UI adicionales
 
-    // Carga de Datos Principal
-    useEffect(() => {
-        const getCleanDomain = () => {
-            let hostname = window.location.hostname;
-            hostname = hostname.replace(/^www\./, ''); 
-            hostname = hostname.split(':')[0]; 
-            return hostname.trim().toLowerCase(); 
-        };
+    const [showCart, setShowCart] = useState(false);
 
-        const cleanHostname = getCleanDomain();
-        const isPremiumDomain = cleanHostname !== 'localhost' 
-                             && cleanHostname !== '127.0.0.1' 
-                             && !cleanHostname.endsWith('netlify.app')
-                             && !cleanHostname.endsWith('netlify.com')
-                             && !cleanHostname.endsWith('vercel.app');
-
-        let channel = null;
-
-        const fetchStoreData = async () => {
-            try {
-                let tiendaData = null;
-
-                if (isPremiumDomain) {
-                    const res = await supabase.from('tiendas').select('*').ilike('dominio_personal', cleanHostname).maybeSingle();
-                    if (res.error || !res.data) throw new Error("Tienda no encontrada por dominio.");
-                    tiendaData = res.data;
-                } else {
-                    if (!parametroTienda || parametroTienda.trim() === '') throw new Error("Falta el parámetro en el enlace.");
-                    let query = supabase.from('tiendas').select('*');
-                    if (/^\d+$/.test(parametroTienda)) query = query.eq('id', parseInt(parametroTienda));
-                    else query = query.eq('slug', parametroTienda);
-                    
-                    const res = await query.single();
-                    if (res.error || !res.data) throw new Error("La tienda solicitada no existe.");
-                    tiendaData = res.data;
-                }
-                
-                setStoreConfig(tiendaData);
-                document.title = `Menú | ${tiendaData.nombre}`;
-
-                // Íconos PWA
-                document.querySelectorAll("link[rel='icon'], link[rel='apple-touch-icon']").forEach(el => el.remove());
-                if (tiendaData.logo_url) {
-                    const favicon = document.createElement('link'); favicon.rel = 'icon'; favicon.href = tiendaData.logo_url; document.head.appendChild(favicon);
-                    const appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = tiendaData.logo_url; document.head.appendChild(appleIcon);
-                }
-
-                // Categorías y Productos
-                const { data: cats } = await supabase.from('categorias').select('*').eq('tienda_id', tiendaData.id).order('orden', { ascending: true });
-                setCategoriesDB(cats || []);
-                if (cats && cats.length > 0) setActiveCategory(cats[0].nombre);
-
-                const { data: items } = await supabase.from('menu_items').select('*').eq('tienda_id', tiendaData.id).order('orden', { ascending: true });
-                setMenuItemsDB(items || []);
-
-                // Suscripción Realtime (con ID único para evitar bugs en StrictMode)
-                const uniqueChannelId = `tienda-channel-${tiendaData.id}-${Math.random().toString(36).substring(2, 9)}`;
-                channel = supabase.channel(uniqueChannelId)
-                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tiendas', filter: `id=eq.${tiendaData.id}` }, payload => {
-                        setStoreConfig(prev => ({...prev, abierto: payload.new.abierto}));
-                    }).subscribe();
-
-            } catch (err) {
-                console.error("Error cargando app:", err);
-                setErrorMsg(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        fetchStoreData();
-        return () => { if (channel) supabase.removeChannel(channel); };
-    }, [parametroTienda]);
-
-    // Local Storage Sincronización
-    useEffect(() => { 
-        if(storeConfig?.id) {
-            localStorage.setItem(`saasClient_${storeConfig.id}`, JSON.stringify({ name: customer.name, phone: customer.phone, paymentMethod: customer.paymentMethod })); 
-        }
-    }, [customer.name, customer.phone, customer.paymentMethod, storeConfig]);
-    
-    useEffect(() => { 
-        if(storeConfig?.id) {
-            const savedClient = localStorage.getItem(`saasClient_${storeConfig.id}`);
-            if (savedClient) {
-                try { setCustomer(prev => ({ ...prev, ...JSON.parse(savedClient) })); } catch(e){}
-            }
-            const savedCart = localStorage.getItem(`saasCart_${storeConfig.id}`); 
-            if (savedCart) {
-                try { setCart(JSON.parse(savedCart)); } catch (e) {} 
-            }
-        }
-    }, [storeConfig?.id]);
-    
-    useEffect(() => { 
-        if(storeConfig?.id) localStorage.setItem(`saasCart_${storeConfig.id}`, JSON.stringify(cart)); 
-    }, [cart, storeConfig]);
-
-    // Handlers
+    // 3. INICIALIZACIÓN DEL CARRITO
+    const { 
+        cart, cartAnimate, 
+        notification, totals, 
+        addToCart, updateQty, 
+        clearCart, showNotification
+    } = useCart(storeConfig, customer, orderType, location);
+// 4. MOTOR DE TRANSACCIONES (Checkout)
+    const {
+        isSubmitting,
+        submitText,
+        whatsappFallbackUrl,
+        showWaitModal,
+        setShowWaitModal, // Lo necesitamos para cerrar modales desde la UI
+        closeWaitModal,
+        showDrinkUpsell,
+        setShowDrinkUpsell,
+        handleCheckout,
+        confirmAndSend
+    } = useCheckout({
+        storeConfig, 
+        cart, 
+        customer, 
+        location, 
+        totals, 
+        orderType,
+        clearCart, 
+        showNotification, 
+        categoriesDB, 
+        setActiveCategory, 
+        setShowCart
+    });
+    // 4. FUNCIÓN FALTANTE RESTAURADA
     const handleShareMenu = async () => {
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `MENU DIGITAL DE ${storeConfig.nombre}`,
-                    text: `¡Mira el menú de ${storeConfig.nombre} y pidamos algo buenísimo! 🍔🔥`,
+                    title: `MENU DIGITAL DE ${storeConfig?.nombre || ''}`,
+                    text: `¡Mira el menú de ${storeConfig?.nombre || ''} y pidamos algo buenísimo! 🍔🔥`,
                     url: window.location.href
                 });
             } catch (err) { console.log('Error compartiendo:', err); }
@@ -407,27 +244,6 @@ export default function Menu() {
     };
 
     const handleCustomAnswer = (fieldId, value) => { setCustomer(prev => ({ ...prev, customAnswers: { ...prev.customAnswers, [fieldId]: value } })); };
-    const showNotification = useCallback((msg) => { setNotification(msg); setTimeout(() => setNotification(null), 2500); }, []); 
-    
-    const addToCart = useCallback((product) => { 
-        const key = `${product.nombre}-${product.price}-${product.details}-${product.isExtra}-${product.extraAppliedName}`; 
-        setCart(prev => { 
-            const existingIndex = prev.findIndex(p => p.key === key); 
-            if (existingIndex > -1) { 
-                const newCart = [...prev]; 
-                newCart[existingIndex].qty += 1; 
-                return newCart; 
-            } 
-            return [...prev, { ...product, qty: 1, key }]; 
-        }); 
-        showNotification(`¡${product.nombre}${product.isExtra ? ` (${product.extraAppliedName})` : ""} agregado!`); 
-        setCartAnimate(true); 
-        setTimeout(() => setCartAnimate(false), 300);
-    }, [showNotification]);
-    
-    const updateQty = useCallback((key, delta) => { 
-        setCart(prev => prev.map(p => p.key === key ? { ...p, qty: Math.max(0, p.qty + delta) } : p).filter(p => p.qty > 0)); 
-    }, []);
 
     const requestLocation = () => {
         if (!navigator.geolocation) return setLocation(prev => ({ ...prev, status: 'error' }));
@@ -463,132 +279,6 @@ export default function Menu() {
         );
     };
 
-    const totals = useMemo(() => { 
-        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0); 
-        const tip = parseFloat(customer.tip) || 0; 
-        const shipping = orderType === 'pickup' ? 0 : (location.allowed ? location.shippingCost : 0);
-        let baseTotal = subtotal + shipping + tip; 
-        const cardFee = customer.paymentMethod === 'tarjeta' ? baseTotal * parseFloat(storeConfig?.porcentaje_tarjeta || 0) : 0; 
-        return { subtotal, tip, cardFee, shipping, finalTotal: baseTotal + cardFee }; 
-    }, [cart, customer.tip, customer.paymentMethod, orderType, location.allowed, location.shippingCost, storeConfig]);
-
-    const closeWaitModal = () => { 
-        setShowWaitModal(false); setIsSubmitting(false); setSubmitText("Confirmar Orden"); setWhatsappFallbackUrl(null); 
-    };
-
-    const handleCheckout = async () => {
-        if (orderType === 'delivery') {
-            if (totals.subtotal < parseFloat(storeConfig.pedido_minimo)) return showNotification(`⚠️ Pedido mínimo: $${storeConfig.pedido_minimo}`);
-            if (location.status === 'idle') return showNotification("⚠️ Valida tu ubicación antes de pedir");
-            if (!location.allowed) return showNotification("⚠️ Fuera de zona a domicilio");
-        }
-        
-        const telefonoLimpio = customer.phone.replace(/[^0-9]/g, '');
-        
-        if (!customer.name || !telefonoLimpio || !customer.paymentMethod || cart.length === 0) return showNotification("⚠️ Faltan datos obligatorios");
-        if (telefonoLimpio.length !== 10) return showNotification("⚠️ Teléfono debe ser de 10 dígitos");
-        
-        if (customer.paymentMethod === 'efectivo') {
-            const payAmount = parseFloat(customer.paymentAmount) || 0;
-            if (payAmount < totals.finalTotal) return showNotification(`⚠️ El pago debe cubrir el total de $${totals.finalTotal.toFixed(2)}`);
-        }
-
-        if (storeConfig.upsell_config?.enabled) {
-            const targetCat = categoriesDB.find(c => c.nombre === storeConfig.upsell_config.targetCategoryName);
-            if (targetCat) {
-                const hasTargetItem = cart.some(item => item.categoria_id === targetCat.id);
-                if (!hasTargetItem) {
-                    setShowDrinkUpsell(true);
-                    return; 
-                }
-            }
-        }
-
-        setWhatsappFallbackUrl(null);
-        setShowWaitModal(true);
-    };
-
-    const confirmAndSend = async () => {
-        if (isSubmitting) return; 
-        setIsSubmitting(true);
-        setSubmitText("🔐 Guardando...");
-
-        const shippingSeguro = orderType === 'pickup' ? 0 : (location.allowed ? location.shippingCost : 0);
-        const tipSeguro = parseFloat(customer.tip) || 0;
-        let baseTotalSeguro = totals.subtotal + shippingSeguro + tipSeguro;
-        const cardFeeSeguro = customer.paymentMethod === 'tarjeta' ? baseTotalSeguro * parseFloat(storeConfig.porcentaje_tarjeta) : 0;
-        const finalTotalSeguro = baseTotalSeguro + cardFeeSeguro;
-        
-        const title = orderType === 'pickup' ? "PEDIDO PICKUP" : "PEDIDO A DOMICILIO";
-        let msg = `🔥 *${title}* 🔥\n\n👤 *Cliente:* ${limpiarTexto(customer.name)}\n📱 *Tel:* ${customer.phone}\n`;
-        
-        Object.keys(customer.customAnswers).forEach(key => {
-            const fieldDef = storeConfig.checkout_options.find(f => f.id === key);
-            if (fieldDef && customer.customAnswers[key]) msg += `👉 *${fieldDef.label.replace(/[^a-zA-Z0-9 ]/g, '')}:* ${limpiarTexto(customer.customAnswers[key])}\n`;
-        });
-
-        msg += `--------------------------------\n`;
-        cart.forEach(item => { msg += `✅ *${item.qty}* x *${limpiarTexto(item.nombre)}* ${item.isExtra ? '('+limpiarTexto(item.extraAppliedName)+')' : ''} ${item.details || ''}- $${(item.price * item.qty).toFixed(2)}\n`; });
-        if (customer.instructions) msg += `\n📝 *Notas:* ${limpiarTexto(customer.instructions)}`;
-        msg += `\n--------------------\n\nSubtotal: $${totals.subtotal.toFixed(2)}\n\n`;
-        
-        if (orderType === 'delivery') msg += `🛵 Envío: $${shippingSeguro.toFixed(2)} ${location.zoneName ? '('+location.zoneName+')' : ''}\n`;
-        else msg += `🛍️ Pickup: Sin costo de envío\n`;
-        
-        if (tipSeguro > 0) msg += `💸 Propina: *$${tipSeguro.toFixed(2)}*\n\n`;
-        
-        let pagoInfo = "";
-        if (customer.paymentMethod === 'efectivo') {
-            const pagoCon = parseFloat(customer.paymentAmount) || 0;
-            pagoInfo = `EFECTIVO\n (Con: $${pagoCon}) -> *Cambio*: $${(pagoCon - finalTotalSeguro > 0) ? (pagoCon - finalTotalSeguro).toFixed(2) : '0.00'}`;
-        } else {
-            pagoInfo = limpiarTexto(customer.paymentMethod).toUpperCase();
-        }
-
-        msg += `*💰 TOTAL: $${finalTotalSeguro.toFixed(2)}*\n\n*Pago:* ${pagoInfo}`;
-        
-        if (orderType === 'delivery' && location.lat && location.lng) {
-            msg += `\n\n📍 *DIRECCIÓN DE ENTREGA:*\n https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}`;
-        }
-
-        const whatsappUrl = `https://wa.me/${storeConfig.telefono_whatsapp}?text=${encodeURIComponent(msg)}`;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        let preOpenedWindow = null;
-        
-        if (!isMobile) preOpenedWindow = window.open('', '_blank');
-
-        try {
-            const insertPromise = supabase.from('pedidos').insert([{ 
-                tienda_id: storeConfig.id, cliente_nombre: customer.name, cliente_telefono: customer.phone, tipo_entrega: orderType,
-                metodo_pago: customer.paymentMethod, pago_con: customer.paymentMethod === 'efectivo' ? parseFloat(customer.paymentAmount) : null,
-                latitud: location.lat, longitud: location.lng, total_subtotal: totals.subtotal, total_envio: shippingSeguro,
-                total_comision: cardFeeSeguro, total_propina: tipSeguro, total_final: finalTotalSeguro, detalle_json: cart,
-                respuestas_checkout: customer.customAnswers, nota_cliente: customer.instructions, estado: 'pendiente'
-            }]);
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000));
-            await Promise.race([insertPromise, timeoutPromise]);
-        } catch(err) {
-            console.warn("⚠️ Falló guardado DB, enviando a WP de todos modos.", err);
-        }
-
-        setCart([]); localStorage.removeItem(`saasCart_${storeConfig.id}`); setShowCart(false);
-        setWhatsappFallbackUrl(whatsappUrl); setSubmitText("Redirigiendo..."); 
-
-        if (!isMobile && preOpenedWindow) preOpenedWindow.location.href = whatsappUrl;
-        else window.location.href = whatsappUrl;
-    };
-
-    const processedMenu = useMemo(() => {
-        let activeCats = categoriesDB;
-        if (!searchTerm && activeCategory) activeCats = categoriesDB.filter(c => c.nombre === activeCategory);
-        
-        return activeCats.map(cat => {
-            let catItems = menuItemsDB.filter(item => item.categoria_id === cat.id && item.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
-            catItems.sort((a, b) => a.orden - b.orden);
-            return { id: cat.id, category: cat.nombre, prepNote: cat.nota_preparacion, items: catItems };
-        }).filter(cat => cat.items.length > 0 || searchTerm); 
-    }, [categoriesDB, menuItemsDB, searchTerm, activeCategory]);
-
     const handleCategoryClick = (catName) => {
         setActiveCategory(catName);
         if (categoriesRef.current) {
@@ -598,13 +288,13 @@ export default function Menu() {
     };
 
     // Vistas de Estado
-    if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900"><InjectedStyles/><div className="loader mb-4"></div><p className="text-gray-400">Cargando restaurante...</p></div>;
-    if (errorMsg || !storeConfig) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><InjectedStyles/><div className="bg-red-900/40 border border-red-500 p-6 rounded-2xl max-w-sm w-full text-center"><div className="text-5xl mb-4">🚫</div><h2 className="text-2xl font-black mb-2 text-white uppercase">Error</h2><p className="text-red-300">{errorMsg}</p></div></div>;
+    if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900"><DynamicStyles storeConfig={storeConfig} /><div className="loader mb-4"></div><p className="text-gray-400">Cargando restaurante...</p></div>;
+    if (errorMsg || !storeConfig) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><DynamicStyles storeConfig={storeConfig} /><div className="bg-red-900/40 border border-red-500 p-6 rounded-2xl max-w-sm w-full text-center"><div className="text-5xl mb-4">🚫</div><h2 className="text-2xl font-black mb-2 text-white uppercase">Error</h2><p className="text-red-300">{errorMsg}</p></div></div>;
     
     if (!storeConfig.abierto) {
         return (
             <div className="min-h-screen bg-[var(--color-bg)] flex flex-col items-center justify-center p-6 text-center animate-fade-in-down">
-                <InjectedStyles/>
+                <DynamicStyles storeConfig={storeConfig} />
                 <div className="mb-10 relative">
                     <div className="absolute inset-0 bg-red-500 blur-2xl opacity-20 rounded-full"></div>
                     <img src={storeConfig.logo_url} className="w-40 h-40 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
@@ -621,7 +311,7 @@ export default function Menu() {
     // RENDER PRINCIPAL
     return (
         <div className="relative min-h-screen pb-24 text-base transition-colors duration-700 bg-[var(--color-bg)] font-sans text-gray-800 selection:bg-[var(--color-primary)] selection:text-white">
-            <InjectedStyles />
+            <DynamicStyles storeConfig={storeConfig} />
             <div className="fixed inset-0 z-0 pointer-events-none transition-colors duration-700" style={{ background: orderType === 'pickup' ? `linear-gradient(to bottom right, ${pickupColor}, #1e1b4b)` : `linear-gradient(to bottom right, #facc15, ${deliveryColor}, #991b1b)` }}>
                 <div className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay transition-opacity duration-700" style={{ backgroundImage: `url(${storeConfig.logo_url})` }} />
             </div>
