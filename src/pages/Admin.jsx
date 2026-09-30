@@ -41,7 +41,7 @@ const Ticket = ({ order, tienda }) => {
             <div className="ticket-header" style={{ textAlign: 'center', marginBottom: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 {tienda.logo_url && <img src={tienda.logo_url} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '5px', filter: 'grayscale(100%)', objectFit: 'cover' }} />}
                 <h2 style={{fontSize: '20px', fontWeight: 'bold', margin:0}}>{tienda.nombre}</h2>
-                <p style={{fontWeight:'bold', fontSize:'16px', margin:'5px 0'}}>{isDelivery ? 'DOMICILIO' : 'PICKUP'}</p>
+                <p style={{fontWeight:'bold', fontSize:'18px', margin:'5px 0'}}>{isDelivery ? 'DOMICILIO' : 'PICKUP'}</p>
                 <p style={{fontSize:'12px', margin:0}}>{date}</p>
                 <p style={{fontSize:'12px', fontWeight:'bold', margin:0}}>FOLIO: #{order.id}</p>
             </div>
@@ -55,7 +55,7 @@ const Ticket = ({ order, tienda }) => {
             </div>
             <div style={{ borderBottom: '2px dashed #000', margin: '5px 0', width: '100%' }}></div>
             {order.nota_cliente && (
-                <div style={{ border: '2px solid #000', padding: '5px', margin: '5px 0', fontWeight: 'bold', fontSize: '11px' }}>
+                <div style={{ border: '2px solid #000', padding: '5px', margin: '5px 0', fontWeight: 'bold', fontSize: '16px' }}>
                     <p style={{margin:0}}>NOTAS:</p>
                     <p style={{fontSize:'18px', margin:0}}>{limpiarTexto(order.nota_cliente)}</p>
                 </div>
@@ -65,8 +65,8 @@ const Ticket = ({ order, tienda }) => {
                     <div key={i} style={{marginBottom: '5px', display: 'flex', alignItems: 'flex-start'}}>
                         <div style={{flex: '1', paddingRight: '5px'}}>
                             <span style={{fontWeight:'bold'}}>-{item.qty} {limpiarTexto(item.nombre)}</span>
-                            {item.isExtra && <div style={{fontSize: '14px', fontWeight: 'bold'}}>+ {item.extraAppliedName}</div>}
-                            {item.details && <div style={{fontSize: '14px', fontStyle: 'italic'}}>{limpiarTexto(item.details)}</div>}
+                            {item.isExtra && <div style={{fontSize: '16px', fontWeight: 'bold'}}>+ {item.extraAppliedName}</div>}
+                            {item.details && <div style={{fontSize: '16px', fontStyle: 'italic'}}>{limpiarTexto(item.details)}</div>}
                         </div>
                         <div style={{width: '50px', textAlign: 'right', fontWeight: 'bold'}}>${(item.price * item.qty).toFixed(0)}</div>
                     </div>
@@ -212,7 +212,7 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
     const removeTopping = (idx) => { setToppingsList(toppingsList.filter((_, i) => i !== idx)); };
 
     const handleAddExtra = () => {
-        if (extrasList.length < 15) setExtrasList([...extrasList, { nombre: '', precio: '' }]);
+        if (extrasList.length < 20) setExtrasList([...extrasList, { nombre: '', precio: '' }]);
     };
     const updateExtra = (index, field, value) => {
         const newExtras = [...extrasList];
@@ -240,48 +240,86 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
         }
     };
 
-    const handleMediaUpload = async (e, field) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (field === 'video_url' && !file.type.startsWith('video/')) return alert("Por favor selecciona un VIDEO válido.");
-        if (field === 'image_url' && !file.type.startsWith('image/')) return alert("Por favor selecciona una IMAGEN válida.");
-        if (file.size > 49 * 1024 * 1024) return alert("Tu archivo es muy pesado (máximo 49 MB).");
+    // Función auxiliar de compresión local en el navegador
+const compressImage = async (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
 
-        setUploadingField(field);
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
 
-        try {
-            if (field === 'video_url') {
-                const videoNode = document.createElement('video');
-                videoNode.preload = 'metadata';
-                videoNode.src = URL.createObjectURL(file);
-                await new Promise((resolve, reject) => {
-                    videoNode.onloadedmetadata = () => {
-                        URL.revokeObjectURL(videoNode.src);
-                        if (videoNode.duration > 15) reject("El video no puede durar más de 15 segundos.");
-                        else resolve();
-                    };
-                    videoNode.onerror = () => {
-                        URL.revokeObjectURL(videoNode.src);
-                        reject("Archivo de video corrupto.");
-                    };
-                });
-            }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
 
-            if (form[field]) await deleteOldFileFromBucket(form[field]);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error("Falló la compresión"));
+                        return;
+                    }
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', 0.8);
+            };
+            img.onerror = (error) => reject(error);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
 
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${field === 'video_url' ? 'vid' : 'img'}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage.from('productos').upload(fileName, file);
-            if (uploadError) throw uploadError;
+// Manejador único de imágenes optimizado para el Administrador
+const handleMediaUpload = async (e, field) => {
+    let file = e.target.files[0];
+    if (!file) return;
 
-            const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName);
-            setForm(prev => ({ ...prev, [field]: publicUrl }));
-        } catch (err) {
-            alert(`Error al procesar: ${err.message || err}`);
-        } finally {
-            setUploadingField(null);
-        }
-    };
+    // Solo permitimos imágenes, eliminando por completo los videos
+    if (!file.type.startsWith('image/')) {
+        return alert("Por favor selecciona una IMAGEN válida.");
+    }
+
+    try {
+        // Optimización automática antes de tocar la red
+        file = await compressImage(file);
+    } catch (error) {
+        console.error("Error al procesar la imagen:", error);
+        return alert("No se pudo optimizar la imagen.");
+    }
+
+    // A partir de aquí, 'file' es liviano y listo para subirse a Supabase Storage
+    const fileName = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage
+        .from('productos')
+        .upload(fileName, file);
+
+    if (error) {
+        alert("Error al subir la imagen al servidor.");
+        console.error(error);
+        return;
+    }
+};
     
     const handleSubmit = (e) => { 
         e.preventDefault(); 
@@ -332,21 +370,7 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
                                     ))}
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-gray-400 text-sm mb-1">URL del Video (Opcional - máx 15 seg)</label>
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex gap-2">
-                                        <input type="text" value={form.video_url || ''} className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-500 outline-none focus:border-orange-500 min-w-0" placeholder="https://..." readOnly />
-                                        {form.video_url && (
-                                            <button type="button" onClick={() => handleRemoveMedia('video_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Video"><Icons.Trash /></button>
-                                        )}
-                                        <label className={`bg-gray-800 border border-gray-600 rounded-lg px-4 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition shrink-0 ${uploadingField !== null && uploadingField !== 'video_url' ? 'opacity-50 pointer-events-none' : ''}`} title={form.video_url ? "Reemplazar Video" : "Subir Video"}>
-                                            {uploadingField === 'video_url' ? <span className="text-xs text-orange-400 font-bold animate-pulse">Subiendo...</span> : <Icons.Upload />}
-                                            <input type="file" accept="video/mp4, video/webm, video/quicktime" className="hidden" onChange={(e) => handleMediaUpload(e, 'video_url')} disabled={uploadingField !== null} />
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+                            
                             <div>
                                 <label className="block text-gray-400 text-sm mb-1">URL de Imagen (Opcional)</label>
                                 <div className="flex flex-col gap-2">
@@ -364,7 +388,7 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
                             </div>
                             <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
                                 <div className="flex justify-between items-center mb-3">
-                                    <label className="text-orange-400 text-sm font-bold">Extras del Producto (Máx 15)</label>
+                                    <label className="text-orange-400 text-sm font-bold">Extras del Producto (Máx 20)</label>
                                     {extrasList.length < 15 && (
                                         <button type="button" onClick={handleAddExtra} className="text-[10px] bg-orange-600 hover:bg-orange-500 px-2 py-1 rounded text-white font-bold transition-all shadow" disabled={uploadingField !== null}>+ AGREGAR</button>
                                     )}
