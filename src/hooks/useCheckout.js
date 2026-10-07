@@ -170,7 +170,7 @@ if (customer.paymentMethod === 'efectivo') {
                     total_final: parseFloat(finalTotalSeguro), 
                     detalle_json: carritoSeguro,
                     respuestas_checkout: respuestasSeguras, 
-                    nota_cliente: limpiarTexto(customer.instructions, 250), 
+                    nota_cliente: limpiarTexto(customer.instructions, 150), 
                     estado: 'pendiente'
                 };
 
