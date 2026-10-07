@@ -1,6 +1,12 @@
 import React, { memo } from 'react';
 
-export const limpiarTexto = (t) => t ? String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").trim() : "";
+export const limpiarTexto = (texto, maxLength = 200) => {
+    if (!texto) return "";
+    return String(texto)
+        .replace(/[<>]/g, '') // Blindaje XSS: Elimina < y > físicamente
+        .substring(0, maxLength) // Blindaje DB: Previene inyección masiva de texto
+        .trim();
+};
 
 export const calculateDistance = (lat1, lon1, lat2, lon2) => { 
     const R = 6371; 

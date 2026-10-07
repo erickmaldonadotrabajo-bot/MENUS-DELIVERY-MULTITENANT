@@ -46,7 +46,7 @@ export default function Home() {
           data = resData;
         } else {
           if (!parametroTienda || parametroTienda.trim() === '') {
-            throw new Error("Falta el parámetro en el enlace (ej. ?tienda=slug).");
+            throw new Error("ERROR ACCESO DENEGADO.");
           }
 
           let query = supabase.from('tiendas').select('*');

@@ -8,6 +8,7 @@ import { Icons } from '../components/ui/Icons';
 import { Button } from '../components/ui/Button';
 import { MediaModal } from '../components/ui/MediaModal';
 import { DynamicStyles } from '../components/ui/DynamicStyles';
+import { CartCheckout } from '../components/ui/CartCheckout';
 
 // hooks
 import { useCart } from '../hooks/useCart';
@@ -106,9 +107,9 @@ const ProductItem = memo(({ item, category, onAdd, config, onShowMedia }) => {
                     <p className="text-sm text-gray-500 mb-3 leading-snug break-words">{item.descripcion}</p>
                 )}
 
-                {(item.video_url || item.image_url) && (
+                {item.image_url && (
                     <button 
-                        onClick={() => onShowMedia({ url: item.video_url || item.image_url, type: item.video_url ? 'video' : 'image' })} 
+                        onClick={() => onShowMedia({ url: item.image_url, type: 'image' })} 
                         className="mb-4 flex items-center gap-1 bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-orange-600 transition-colors shadow-sm"
                     >
                         <Icons.Eye /> Ver Producto
@@ -233,7 +234,7 @@ export default function Menu() {
             try {
                 await navigator.share({
                     title: `MENU DIGITAL DE ${storeConfig?.nombre || ''}`,
-                    text: `¡Mira el menú de ${storeConfig?.nombre || ''} y pidamos algo buenísimo! 🍔🔥`,
+                    text: `¡Mira el menú de ${storeConfig?.nombre || ''} y pidamos algo buenísimo! 🔥`,
                     url: window.location.href
                 });
             } catch (err) { console.log('Error compartiendo:', err); }
@@ -502,8 +503,11 @@ export default function Menu() {
             )}
             
             {notification && ( 
-                <div className="fixed top-1/2 left-[5%] transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 backdrop-blur-md text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border border-gray-700 text-center min-w-[300px] max-w-[90%]">
-                    <div className="bg-green-500 rounded-full p-2 animate-bounce"><Icons.Check size={32} className="text-white" /></div>{notification}
+                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 backdrop-blur-md text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
+                    <div className="bg-green-500 rounded-full p-2 animate-bounce">
+                        <Icons.Check size={32} className="text-white" />
+                    </div>
+                    {notification}
                 </div> 
             )}
 
