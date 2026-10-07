@@ -67,8 +67,8 @@ export default function Home() {
         
         document.title = data.nombre;
 
-        // GENERADOR DE PWA (Manifest dinámico)
         if (data.logo_url) {
+          // 1. GENERADOR DE PWA (Manifest dinámico)
           const manifestJSON = {
             name: data.nombre,
             short_name: data.nombre,
@@ -87,6 +87,24 @@ export default function Home() {
           manifestLink.rel = 'manifest';
           manifestLink.href = URL.createObjectURL(manifestBlob);
           document.head.appendChild(manifestLink);
+
+          // 2. INYECCIÓN DINÁMICA DEL FAVICON (Pestaña del navegador)
+          let linkIcon = document.querySelector("link[rel~='icon']");
+          if (!linkIcon) {
+            linkIcon = document.createElement('link');
+            linkIcon.rel = 'icon';
+            document.head.appendChild(linkIcon);
+          }
+          linkIcon.href = data.logo_url;
+
+          // 3. INYECCIÓN DEL APPLE TOUCH ICON (Para accesos directos en iOS/iPhone)
+          let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+          if (!appleIcon) {
+            appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            document.head.appendChild(appleIcon);
+          }
+          appleIcon.href = data.logo_url;
         }
 
         setTienda(data);

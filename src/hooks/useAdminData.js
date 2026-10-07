@@ -5,15 +5,15 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
     const [tienda, setTienda] = useState(null);
     const [categories, setCategories] = useState([]);
     const [products, setProducts] = useState([]);
-    const [orders, setOrders] = useState([]); // Pedidos pendientes
-    const [historyOrders, setHistoryOrders] = useState([]); // Historial paginado
+    const [orders, setOrders] = useState([]); 
+    const [historyOrders, setHistoryOrders] = useState([]); 
     const [stats, setStats] = useState({ ventas: 0, cancelados: 0, top5: [], bottom5: [] });
     
     const [loadingData, setLoadingData] = useState(true);
     const [hasNewOrder, setHasNewOrder] = useState(false);
-    const [metricsDateFilter, setMetricsDateFilter] = useState('30_dias');
+    // Cambiamos el valor inicial para que coincida con la nueva estructura
+    const [metricsDateFilter, setMetricsDateFilter] = useState('mes_actual');
 
-    // 1. CARGA INICIAL DE DATOS
     const fetchTiendaData = useCallback(async () => {
         if (!tiendaId) return;
         
@@ -32,7 +32,6 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
         setLoadingData(false);
     }, [tiendaId]);
 
-    // 2. CARGA DE HISTORIAL OPTIMIZADA (Límite de 50 para evitar fuga de memoria)
     const loadHistory = useCallback(async () => {
         if(!tiendaId) return;
         const d60 = new Date(); d60.setDate(d60.getDate() - 60);
@@ -43,12 +42,12 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
             .eq('tienda_id', tiendaId)
             .gte('created_at', d60.toISOString())
             .order('created_at', { ascending: false })
-            .range(0, 49); // <-- OPTIMIZACIÓN CRÍTICA: Máximo 50 registros
+            .range(0, 49); 
             
         if(data) setHistoryOrders(data);
     }, [tiendaId]);
 
-    // 3. CARGA DE MÉTRICAS
+    // LÓGICA DE FILTRADO DE FECHAS MEJORADA (Cuartos Mensuales)
     const loadStats = useCallback(async () => {
         if (!tiendaId || !products.length) return;
         try {
@@ -56,16 +55,41 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
             let startDate = new Date();
             let endDate = new Date();
 
-            if (metricsDateFilter === 'semana') {
-                startDate.setDate(now.getDate() - now.getDay());
-                startDate.setHours(0,0,0,0);
-            } else if (metricsDateFilter === 'mes_actual') {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else if (metricsDateFilter === 'mes_anterior') {
-                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-            } else {
-                startDate.setDate(now.getDate() - 30);
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+
+            switch (metricsDateFilter) {
+                case 'cuarto_1':
+                    // Días 1 al 7 del mes actual
+                    startDate = new Date(currentYear, currentMonth, 1, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth, 7, 23, 59, 59);
+                    break;
+                case 'cuarto_2':
+                    // Días 8 al 14 del mes actual
+                    startDate = new Date(currentYear, currentMonth, 8, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth, 14, 23, 59, 59);
+                    break;
+                case 'cuarto_3':
+                    // Días 15 al 21 del mes actual
+                    startDate = new Date(currentYear, currentMonth, 15, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth, 21, 23, 59, 59);
+                    break;
+                case 'cuarto_4':
+                    // Día 22 al final del mes actual
+                    startDate = new Date(currentYear, currentMonth, 22, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+                    break;
+                case 'mes_pasado':
+                    // Mes completo anterior
+                    startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
+                    break;
+                case 'mes_actual':
+                default:
+                    // Mes completo actual
+                    startDate = new Date(currentYear, currentMonth, 1, 0, 0, 0);
+                    endDate = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+                    break;
             }
 
             const { data, error } = await supabase
@@ -91,19 +115,22 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
                 }
             });
 
+            // Agrupamos TODOS los productos y ordenamos por ventas
             const allStats = products.map(p => ({ nombre: p.nombre, vendidos: productsCount[p.nombre] || 0 }));
             allStats.sort((a,b) => b.vendidos - a.vendidos);
+
+            // CORRECCIÓN: Filtramos los productos que no se han vendido (> 0) antes de calcular el Bottom 5
+            const productosConVentas = allStats.filter(item => item.vendidos > 0);
 
             setStats({ 
                 ventas: totalVentas, 
                 cancelados: totalCancelados, 
                 top5: allStats.slice(0, 5), 
-                bottom5: [...allStats].filter(item => item.vendidos > 0).reverse().slice(0, 5) 
+                bottom5: [...productosConVentas].reverse().slice(0, 5) 
             });
         } catch (e) { console.error("Error stats:", e); }
     }, [tiendaId, products, metricsDateFilter]);
 
-    // 4. ORQUESTADOR Y WEBSOCKET (Solo se activa si el usuario está autenticado)
     useEffect(() => {
         if (!isAuthenticated || !tiendaId) return;
 
@@ -111,29 +138,25 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
         fetchTiendaData();
         loadHistory();
 
-        // Escucha en tiempo real SOLO para pedidos nuevos o actualizados de ESTA tienda
         const ordersChannel = supabase.channel('admin_orders_' + tiendaId)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `tienda_id=eq.${tiendaId}` }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     setOrders(prev => [payload.new, ...prev]);
                     setHasNewOrder(true);
-                    // Emitimos un evento personalizado para que Admin.jsx dispare el sonido y la impresión
                     window.dispatchEvent(new CustomEvent('newOrderReceived', { detail: payload.new }));
                 } else if (payload.eventType === 'UPDATE' && payload.new.estado !== 'pendiente') {
                     setOrders(prev => prev.filter(o => o.id !== payload.new.id));
-                    loadHistory(); // Actualizamos historial silenciosamente
+                    loadHistory();
                 }
             }).subscribe();
             
         return () => { supabase.removeChannel(ordersChannel); };
     }, [isAuthenticated, tiendaId, fetchTiendaData, loadHistory]);
 
-    // Actualizar stats cuando cambie el filtro o los productos
     useEffect(() => {
         if (isAuthenticated && products.length > 0) loadStats();
     }, [metricsDateFilter, products, loadStats, isAuthenticated]);
 
-    // Acciones de actualización directa
     const updateStoreConfig = (newData) => setTienda(prev => ({...prev, ...newData}));
     const updateLocalCategories = (cats) => setCategories(cats);
     const updateLocalProducts = (prods) => setProducts(prods);

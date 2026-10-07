@@ -9,7 +9,6 @@ import { useAdminData } from '../hooks/useAdminData';
 const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3');
 alertSound.loop = true;
 
-// Iconos SVG
 const Icons = {
     Menu: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>,
     Search: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
@@ -25,12 +24,18 @@ const Icons = {
     Settings: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
     Lock: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>,
     Cancel: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>,
-    Chart: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+    Chart: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+    Drag: () => <svg className="w-5 h-5 text-gray-500 hover:text-white cursor-grab active:cursor-grabbing" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
 };
 
-const limpiarTexto = (t) => t ? String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").trim() : "";
+const limpiarTexto = (texto, maxLength = 200) => {
+    if (!texto) return "";
+    return String(texto)
+        .replace(/[<>]/g, '') 
+        .substring(0, maxLength)
+        .trim();
+};
 
-// COMPONENTES SECUNDARIOS (Vistas)
 const Ticket = ({ order, tienda }) => {
     if (!order || !tienda) return null;
     const date = new Date(order.created_at).toLocaleString('es-MX');
@@ -47,7 +52,7 @@ const Ticket = ({ order, tienda }) => {
             </div>
             <div style={{ borderBottom: '2px dashed #000', margin: '5px 0', width: '100%' }}></div>
             <div style={{ fontSize: '16px' }}>
-                <p style={{ margin:0 }}><strong>CTE:</strong> {limpiarTexto(order.cliente_nombre)}</p>
+                <p style={{ margin:0 }}><strong>CTE:</strong> {limpiarTexto(order.cliente_nombre, 50)}</p>
                 <p style={{ margin:0 }}><strong>TEL:</strong> {order.cliente_telefono}</p>
                 {order.respuestas_checkout && Object.keys(order.respuestas_checkout).map(k => (
                     <p key={k} style={{marginTop:'5px', fontWeight:'bold', margin:0}}>{limpiarTexto(k).toUpperCase()}: {limpiarTexto(order.respuestas_checkout[k]).toUpperCase()}</p>
@@ -57,16 +62,16 @@ const Ticket = ({ order, tienda }) => {
             {order.nota_cliente && (
                 <div style={{ border: '2px solid #000', padding: '5px', margin: '5px 0', fontWeight: 'bold', fontSize: '16px' }}>
                     <p style={{margin:0}}>NOTAS:</p>
-                    <p style={{fontSize:'18px', margin:0}}>{limpiarTexto(order.nota_cliente)}</p>
+                    <p style={{fontSize:'18px', margin:0}}>{limpiarTexto(order.nota_cliente, 200)}</p>
                 </div>
             )}
             <div style={{width: '100%', fontSize: '18px'}}>
                 {order.detalle_json && order.detalle_json.map((item, i) => (
                     <div key={i} style={{marginBottom: '5px', display: 'flex', alignItems: 'flex-start'}}>
                         <div style={{flex: '1', paddingRight: '5px'}}>
-                            <span style={{fontWeight:'bold'}}>-{item.qty} {limpiarTexto(item.nombre)}</span>
-                            {item.isExtra && <div style={{fontSize: '16px', fontWeight: 'bold'}}>+ {item.extraAppliedName}</div>}
-                            {item.details && <div style={{fontSize: '16px', fontStyle: 'italic'}}>{limpiarTexto(item.details)}</div>}
+                            <span style={{fontWeight:'bold'}}>-{item.qty} {limpiarTexto(item.nombre, 80)}</span>
+                            {item.isExtra && <div style={{fontSize: '16px', fontWeight: 'bold'}}>+ {limpiarTexto(item.extraAppliedName, 100)}</div>}
+                            {item.details && <div style={{fontSize: '16px', fontStyle: 'italic'}}>{limpiarTexto(item.details, 100)}</div>}
                         </div>
                         <div style={{width: '50px', textAlign: 'right', fontWeight: 'bold'}}>${(item.price * item.qty).toFixed(0)}</div>
                     </div>
@@ -80,7 +85,7 @@ const Ticket = ({ order, tienda }) => {
                 <div style={{ display:'flex', justifyContent:'space-between', fontWeight:'bold', fontSize:'16px', borderTop:'2px solid #000', marginTop:'2px', paddingTop:'2px' }}><span>TOTAL:</span><span>${parseFloat(order.total_final).toFixed(2)}</span></div>
             </div>
             <div style={{textAlign: 'center', marginTop: '10px', fontSize: '14px'}}>
-                <p style={{margin:0}}>PAGO: {limpiarTexto(order.metodo_pago)}</p>
+                <p style={{margin:0}}>PAGO: {limpiarTexto(order.metodo_pago, 30)}</p>
                 {String(order.metodo_pago).toLowerCase().includes('efectivo') && order.pago_con && (
                     <div style={{margin: '5px 0'}}>
                         <p style={{margin:0}}>PAGA CON: ${order.pago_con}</p>
@@ -117,27 +122,27 @@ const OrderCard = ({ order, tienda, onComplete, onPrint, onCancel }) => {
 
             <div className="p-4">
                 <div className="mb-4">
-                    <h3 className="text-xl font-bold text-white leading-none break-words">{limpiarTexto(order.cliente_nombre)}</h3>
+                    <h3 className="text-xl font-bold text-white leading-none break-words">{limpiarTexto(order.cliente_nombre, 50)}</h3>
                     <a href={`tel:${order.cliente_telefono}`} className="text-orange-400 text-sm hover:underline flex items-center gap-1 mt-1 break-words">TEL: {order.cliente_telefono}</a>
                     {order.respuestas_checkout && Object.keys(order.respuestas_checkout).map(k => (
-                        <div key={k} className="mt-2 mr-2 inline-block bg-blue-900/50 border border-blue-700 text-blue-200 text-xs font-black px-2 py-1 rounded-lg uppercase tracking-wide break-words max-w-full">{k}: {order.respuestas_checkout[k]}</div>
+                        <div key={k} className="mt-2 mr-2 inline-block bg-blue-900/50 border border-blue-700 text-blue-200 text-xs font-black px-2 py-1 rounded-lg uppercase tracking-wide break-words max-w-full">{limpiarTexto(k)}: {limpiarTexto(order.respuestas_checkout[k])}</div>
                     ))}
                 </div>
                 
                 <div className="bg-gray-900/50 rounded-lg p-3 mb-4 space-y-2 border border-gray-700/50 w-full overflow-hidden">
                     {order.detalle_json && order.detalle_json.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-700/50 pb-2 last:border-0 last:pb-0">
-                            <div className="text-gray-200 break-words pr-2"><span className="font-bold text-orange-500 mr-1">{item.qty}x</span> {limpiarTexto(item.nombre)}{item.isExtra && <span className="text-yellow-500 text-xs ml-1 font-bold break-words">+{item.extraAppliedName}</span>}{item.details && <p className="text-gray-500 text-xs pl-6 italic break-words">{limpiarTexto(item.details)}</p>}</div>
+                            <div className="text-gray-200 break-words pr-2"><span className="font-bold text-orange-500 mr-1">{item.qty}x</span> {limpiarTexto(item.nombre, 80)}{item.isExtra && <span className="text-yellow-500 text-xs ml-1 font-bold break-words">+{limpiarTexto(item.extraAppliedName, 100)}</span>}{item.details && <p className="text-gray-500 text-xs pl-6 italic break-words">{limpiarTexto(item.details, 150)}</p>}</div>
                             <span className="font-mono text-gray-400 whitespace-nowrap pl-2">${(item.price * item.qty).toFixed(2)}</span>
                         </div>
                     ))}
-                    {order.nota_cliente && <div className="mt-2 bg-yellow-900/20 text-yellow-200 text-xs p-2 rounded border border-yellow-900/30 break-words">NOTA: <strong>{limpiarTexto(order.nota_cliente)}</strong></div>}
+                    {order.nota_cliente && <div className="mt-2 bg-yellow-900/20 text-yellow-200 text-xs p-2 rounded border border-yellow-900/30 break-words">NOTA: <strong>{limpiarTexto(order.nota_cliente, 200)}</strong></div>}
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 border-t border-gray-700 pt-3 gap-2">
                     <div className="text-sm">
                         <p className="text-gray-400 uppercase font-bold text-xs">Pago</p>
-                        <p className="text-white font-medium flex items-center gap-1"><Icons.Check /> {limpiarTexto(order.metodo_pago).toUpperCase()}</p>
+                        <p className="text-white font-medium flex items-center gap-1"><Icons.Check /> {limpiarTexto(order.metodo_pago, 30).toUpperCase()}</p>
                         {String(order.metodo_pago).toLowerCase().includes('efectivo') && order.pago_con && <p className="text-green-400 text-xs font-bold mt-1">Cambio: <span className="text-white">${(order.pago_con - order.total_final).toFixed(2)}</span></p>}
                     </div>
                     <div className="text-left sm:text-right w-full sm:w-auto">
@@ -178,7 +183,8 @@ const OrderCard = ({ order, tienda, onComplete, onPrint, onCancel }) => {
     );
 };
 
-const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
+// MODAL BLINDADO Y OPTIMIZADO CON LÍMITE DE CUOTA
+const Modal = ({isOpen, onClose, type, editItem, categories, products, tienda, onSave}) => {
     const [form, setForm] = useState({});
     const [newTopping, setNewTopping] = useState("");
     const [toppingsList, setToppingsList] = useState([]);
@@ -233,102 +239,111 @@ const Modal = ({isOpen, onClose, type, editItem, categories, onSave}) => {
     const handleRemoveMedia = async (field) => {
         const currentUrl = form[field];
         if (currentUrl) {
-            if (confirm(`¿Estás seguro de eliminar este ${field === 'video_url' ? 'video' : 'imagen'}?`)) {
+            if (confirm(`¿Estás seguro de eliminar esta imagen?`)) {
                 await deleteOldFileFromBucket(currentUrl);
                 setForm(prev => ({ ...prev, [field]: null }));
             }
         }
     };
 
-    // Función auxiliar de compresión local en el navegador
-const compressImage = async (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1200;
-                const MAX_HEIGHT = 1200;
-                let width = img.width;
-                let height = img.height;
+    const compressImage = async (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1000;
+                    const MAX_HEIGHT = 1000;
+                    let width = img.width;
+                    let height = img.height;
 
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                     }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
 
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
 
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error("Falló la compresión"));
-                        return;
-                    }
-                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                        type: 'image/jpeg',
-                        lastModified: Date.now(),
-                    });
-                    resolve(compressedFile);
-                }, 'image/jpeg', 0.8);
+                    canvas.toBlob((blob) => {
+                        if (!blob) return reject(new Error("Falló la compresión"));
+                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                            type: 'image/webp',
+                            lastModified: Date.now(),
+                        });
+                        resolve(compressedFile);
+                    }, 'image/webp', 0.8);
+                };
+                img.onerror = (error) => reject(error);
             };
-            img.onerror = (error) => reject(error);
-        };
-        reader.onerror = (error) => reject(error);
-    });
-};
+            reader.onerror = (error) => reject(error);
+        });
+    };
 
-// Manejador único de imágenes optimizado para el Administrador
-const handleMediaUpload = async (e, field) => {
-    let file = e.target.files[0];
-    if (!file) return;
+    const handleMediaUpload = async (e, field) => {
+        let file = e.target.files[0];
+        if (!file) return;
 
-    // Solo permitimos imágenes, eliminando por completo los videos
-    if (!file.type.startsWith('image/')) {
-        return alert("Por favor selecciona una IMAGEN válida.");
-    }
+        if (file.size > 10 * 1024 * 1024) return alert("⚠️ Imagen demasiado pesada (Máx 10MB).");
+        if (!file.type.startsWith('image/')) return alert("⚠️ Selecciona una IMAGEN válida.");
 
-    try {
-        // Optimización automática antes de tocar la red
-        file = await compressImage(file);
-    } catch (error) {
-        console.error("Error al procesar la imagen:", error);
-        return alert("No se pudo optimizar la imagen.");
-    }
+        // INTERCEPTOR DE CUOTA (Regla de Negocio SaaS)
+        const MAX_PHOTOS = tienda?.tiene_panel_admin ? 25 : 10;
+        const currentPhotoCount = products.filter(p => p.image_url).length;
+        
+        if (currentPhotoCount >= MAX_PHOTOS && !form.image_url) {
+            alert(`⛔ LÍMITE ALCANZADO: Tu plan actual solo permite ${MAX_PHOTOS} fotos estratégicas para optimizar la velocidad del menú. Elimina fotos de otros productos para subir una nueva.`);
+            return;
+        }
 
-    // A partir de aquí, 'file' es liviano y listo para subirse a Supabase Storage
-    const fileName = `${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage
-        .from('productos')
-        .upload(fileName, file);
+        setUploadingField(field);
+        try {
+            file = await compressImage(file);
+            const fileName = `${Date.now()}_${file.name}`;
+            
+            const { data, error } = await supabase.storage.from('productos').upload(fileName, file);
+            if (error) throw error;
 
-    if (error) {
-        alert("Error al subir la imagen al servidor.");
-        console.error(error);
-        return;
-    }
-};
+            const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName);
+            setForm(prev => ({ ...prev, [field]: publicUrl }));
+
+        } catch (error) {
+            console.error(error);
+            alert("Error al subir la imagen.");
+        } finally {
+            setUploadingField(null);
+        }
+    };
     
     const handleSubmit = (e) => { 
         e.preventDefault(); 
-        const cleanExtras = extrasList.filter(ext => ext.nombre.trim() !== '');
+        const cleanExtras = extrasList.filter(ext => ext.nombre.trim() !== '').map(ext => ({
+            ...ext, nombre: limpiarTexto(ext.nombre, 50)
+        }));
+        const cleanToppings = toppingsList.map(t => limpiarTexto(t, 50));
+
         let finalData;
         if (type === 'category') {
-            finalData = { nombre: form.nombre, nota_preparacion: form.nota_preparacion };
+            finalData = { 
+                nombre: limpiarTexto(form.nombre, 50), 
+                nota_preparacion: form.nota_preparacion ? limpiarTexto(form.nota_preparacion, 150) : null 
+            };
         } else {
-            finalData = { ...form, extras: cleanExtras, has_extra: cleanExtras.length > 0, removables: toppingsList };
+            finalData = { 
+                ...form, 
+                nombre: limpiarTexto(form.nombre, 80),
+                descripcion: form.descripcion ? limpiarTexto(form.descripcion, 250) : null,
+                precio: parseFloat(form.precio),
+                extras: cleanExtras, 
+                has_extra: cleanExtras.length > 0, 
+                removables: cleanToppings 
+            };
         }
         onSave(finalData, editItem?.id); 
         onClose(); 
@@ -356,7 +371,7 @@ const handleMediaUpload = async (e, field) => {
                                 <textarea value={form.descripcion || ''} onChange={e => setForm({...form, descripcion: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-orange-500" rows="2" placeholder="Ej: Deliciosa combinación de..." disabled={uploadingField !== null}></textarea>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-gray-400 text-sm mb-1">Precio Base</label><input required type="number" value={form.precio || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none" onChange={e => setForm({...form, precio: e.target.value})} disabled={uploadingField !== null} /></div>
+                                <div><label className="block text-gray-400 text-sm mb-1">Precio Base</label><input required type="number" step="any" value={form.precio || ''} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white outline-none" onChange={e => setForm({...form, precio: e.target.value})} disabled={uploadingField !== null} /></div>
                             </div>
                             <div className="p-3 bg-gray-900 rounded-xl border border-gray-700">
                                 <label className="block text-orange-400 text-sm font-bold mb-2">Ingredientes Removibles</label>
@@ -375,7 +390,7 @@ const handleMediaUpload = async (e, field) => {
                                 <label className="block text-gray-400 text-sm mb-1">URL de Imagen (Opcional)</label>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex gap-2">
-                                        <input type="text" value={form.image_url || ''} className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-500 outline-none focus:border-orange-500 min-w-0" placeholder="https://..." readOnly />
+                                        <input type="text" value={form.image_url || ''} className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-500 outline-none focus:border-orange-500 min-w-0" placeholder="Sube una foto para generar URL..." readOnly />
                                         {form.image_url && (
                                             <button type="button" onClick={() => handleRemoveMedia('image_url')} className="bg-red-900/50 border border-red-700 rounded-lg px-3 text-red-400 hover:bg-red-800 transition shrink-0" title="Eliminar Imagen"><Icons.Trash /></button>
                                         )}
@@ -400,7 +415,7 @@ const handleMediaUpload = async (e, field) => {
                                             <input type="text" placeholder="Ej: Queso Extra" value={ext.nombre} onChange={e => updateExtra(i, 'nombre', e.target.value)} className="flex-1 bg-gray-800 border border-gray-600 p-2 rounded-lg text-white text-sm outline-none focus:border-orange-500 min-w-0" disabled={uploadingField !== null} />
                                             <div className="relative w-20 sm:w-24 shrink-0">
                                                 <span className="absolute left-2 top-2 text-gray-500 text-sm">$</span>
-                                                <input type="number" placeholder="0" value={ext.precio} onChange={e => updateExtra(i, 'precio', e.target.value)} className="w-full bg-gray-800 border border-gray-600 py-2 pr-2 pl-6 rounded-lg text-white text-sm outline-none focus:border-orange-500" disabled={uploadingField !== null} />
+                                                <input type="number" step="any" placeholder="0" value={ext.precio} onChange={e => updateExtra(i, 'precio', e.target.value)} className="w-full bg-gray-800 border border-gray-600 py-2 pr-2 pl-6 rounded-lg text-white text-sm outline-none focus:border-orange-500" disabled={uploadingField !== null} />
                                             </div>
                                             <button type="button" onClick={() => removeExtra(i)} className="text-red-500 hover:text-red-400 p-1 shrink-0" disabled={uploadingField !== null}><Icons.Trash /></button>
                                         </div>
@@ -423,14 +438,13 @@ const handleMediaUpload = async (e, field) => {
     );
 };
 
-// COMPONENTE PRINCIPAL (Cerebro Refactorizado)
+// COMPONENTE PRINCIPAL
 export default function Admin() {
     const [searchParams] = useSearchParams();
     const parametroTienda = searchParams.get('tienda');
     const premium = isPremiumDomain();
     const cleanHostname = getCleanDomain();
 
-    // HOOKS ARQUITECTÓNICOS
     const { tiendaId, isAuthenticated, loadingAuth, authError, login, logout } = useAdminAuth(parametroTienda);
     
     const {
@@ -439,7 +453,6 @@ export default function Admin() {
         hasNewOrder, setHasNewOrder, metricsDateFilter, setMetricsDateFilter, fetchTiendaData, loadHistory
     } = useAdminData(tiendaId, isAuthenticated);
 
-    // ESTADO DE UI
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -461,7 +474,6 @@ export default function Admin() {
     const [autoPrint, setAutoPrint] = useState(() => localStorage.getItem('saas_autoprint') === 'true');
     const autoPrintRef = useRef(autoPrint);
 
-    // Inyección de estilos globales para el Ticket
     useEffect(() => {
         const style = document.createElement('style');
         style.innerHTML = `
@@ -486,7 +498,6 @@ export default function Admin() {
         return () => document.head.removeChild(style);
     }, []);
 
-    // Sincronizar configuracion local y eventos
     useEffect(() => {
         if (tienda) setConfigForm(tienda);
     }, [tienda]);
@@ -496,7 +507,6 @@ export default function Admin() {
         autoPrintRef.current = autoPrint;
     }, [autoPrint]);
 
-    // Listener para Sonido e Impresión Automática emitido desde el Hook de Datos
     useEffect(() => {
         const handleNewOrderEvent = (e) => {
             alertSound.play().catch(err => console.log("Audio block:", err));
@@ -519,21 +529,15 @@ export default function Admin() {
         alertSound.currentTime = 0; 
     };
 
-    // ACCIONES DE LOGIN
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setIsLoggingIn(true);
         setLoginErrorState(false);
-        try {
-            await login(email, password);
-        } catch (err) {
-            setLoginErrorState(true);
-        } finally {
-            setIsLoggingIn(false);
-        }
+        try { await login(email, password); } 
+        catch (err) { setLoginErrorState(true); } 
+        finally { setIsLoggingIn(false); }
     };
 
-    // BÚSQUEDA Y FILTRADO INVENTARIO (Local)
     const processedInventory = useMemo(() => {
         if (!categories.length) return [];
         if (search.trim() !== '') {
@@ -571,7 +575,6 @@ export default function Admin() {
         });
     }, [historyOrders, historyFilterDays, historyFilterStatus]);
 
-    // ACCIONES CRUD A BASE DE DATOS DIRECTA
     const handleCompleteOrder = async (id) => { 
         setOrders(prev => prev.filter(o => o.id !== id)); 
         await supabase.from('pedidos').update({ estado: 'despachado' }).eq('id', id); 
@@ -612,7 +615,6 @@ export default function Admin() {
     const deleteProduct = async (item) => { 
         if(!confirm("¿Borrar producto?")) return; 
         if (item.image_url) await supabase.storage.from('productos').remove([item.image_url.split('/').pop()]);
-        if (item.video_url) await supabase.storage.from('productos').remove([item.video_url.split('/').pop()]);
         updateLocalProducts(products.filter(p => p.id !== item.id)); 
         await supabase.from('menu_items').delete().eq('id', item.id); 
     };
@@ -641,7 +643,6 @@ export default function Admin() {
 
     const handlePrint = (order) => { setTicketOrder(order); setTimeout(() => window.print(), 500); };
 
-    // FUNCIONES DE AJUSTES Y LOGOS
     const handleLogoUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !file.type.startsWith('image/')) return showToast("Solo se permiten imágenes (PNG, JPG)");
@@ -677,23 +678,30 @@ export default function Admin() {
         } catch (e) { showToast("Error al borrar el logo."); }
     };
 
+    // Ajustes guardados SIN los inputs bloqueados (slug, dominio) y agregando pedido minimo
     const saveStoreSettings = async (e) => {
         e.preventDefault();
-        let formattedSlug = configForm.slug ? configForm.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') : null;
         const updateData = {
-            nombre: configForm.nombre, telefono_whatsapp: configForm.telefono_whatsapp, logo_url: configForm.logo_url,
-            mensaje_bienvenida: configForm.mensaje_bienvenida, mensaje_cerrado: configForm.mensaje_cerrado,
-            slug: formattedSlug, dominio_personal: configForm.dominio_personal?.trim().toLowerCase(),
-            color_primario: configForm.color_primario, color_secundario: configForm.color_secundario, 
-            color_fondo: configForm.color_fondo, color_delivery: configForm.color_delivery, color_pickup: configForm.color_pickup,
-            latitud: parseFloat(configForm.latitud), longitud: parseFloat(configForm.longitud), max_delivery_radius: parseFloat(configForm.max_delivery_radius),
+            nombre: configForm.nombre, 
+            telefono_whatsapp: configForm.telefono_whatsapp, 
+            logo_url: configForm.logo_url,
+            mensaje_bienvenida: configForm.mensaje_bienvenida, 
+            mensaje_cerrado: configForm.mensaje_cerrado,
+            pedido_minimo: parseFloat(configForm.pedido_minimo) || 0,
+            color_primario: configForm.color_primario, 
+            color_secundario: configForm.color_secundario, 
+            color_fondo: configForm.color_fondo, 
+            color_delivery: configForm.color_delivery, 
+            color_pickup: configForm.color_pickup,
+            latitud: parseFloat(configForm.latitud), 
+            longitud: parseFloat(configForm.longitud), 
+            max_delivery_radius: parseFloat(configForm.max_delivery_radius),
             delivery_tiers: Array.isArray(configForm.delivery_tiers) ? configForm.delivery_tiers : []
         };
         try {
             const { error } = await supabase.from('tiendas').update(updateData).eq('id', tiendaId);
-            if (error) throw error.code === '23505' ? new Error("SLUG o Dominio ya en uso.") : error;
+            if (error) throw error;
             updateStoreConfig(updateData);
-            setConfigForm({...configForm, slug: formattedSlug});
             showToast('¡Ajustes guardados correctamente!');
         } catch (err) { alert(err.message || 'Error al guardar.'); }
     };
@@ -705,7 +713,39 @@ export default function Admin() {
         setConfigForm({...configForm, delivery_tiers: newTiers});
     };
 
-    // RENDERIZADO
+    // LOGICA DRAG & DROP NATIVO PARA CATEGORIAS
+    const handleDragStart = (e, catId) => {
+        if (search !== '' || activeCat !== 'Todas') return e.preventDefault(); // Evitar arrastrar si hay filtros activos
+        e.dataTransfer.setData('catId', catId);
+    };
+
+    const handleDrop = async (e, targetCatId) => {
+        e.preventDefault();
+        const draggedCatId = Number(e.dataTransfer.getData('catId'));
+        if (!draggedCatId || draggedCatId === targetCatId) return;
+
+        const newCategories = [...categories];
+        const draggedIdx = newCategories.findIndex(c => c.id === draggedCatId);
+        const targetIdx = newCategories.findIndex(c => c.id === targetCatId);
+
+        if (draggedIdx === -1 || targetIdx === -1) return;
+
+        const [draggedItem] = newCategories.splice(draggedIdx, 1);
+        newCategories.splice(targetIdx, 0, draggedItem);
+
+        const updatedCategories = newCategories.map((c, i) => ({ ...c, orden: i + 1 }));
+        updateLocalCategories(updatedCategories);
+
+        try {
+            await Promise.all(updatedCategories.map(c => supabase.from('categorias').update({ orden: c.orden }).eq('id', c.id)));
+            showToast("✅ Orden de categorías guardado");
+        } catch (err) {
+            showToast("Error reordenando base de datos");
+            fetchTiendaData(); // Revertir en caso de error
+        }
+    };
+    const handleDragOver = (e) => e.preventDefault();
+
     if (loadingAuth || (isAuthenticated && loadingData)) return <div className="min-h-screen flex items-center justify-center bg-gray-900"><div className="loader"></div></div>;
     if (authError) return <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-950 text-white text-center"><div className="text-6xl mb-4">🛑</div><h1 className="text-2xl font-black mb-2 uppercase">Acceso Denegado</h1><p className="text-gray-400">{authError}</p></div>;
 
@@ -804,10 +844,12 @@ export default function Admin() {
                         </div>
                         <div className="flex gap-2">
                             <select value={metricsDateFilter} onChange={(e) => setMetricsDateFilter(e.target.value)} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-2 text-sm outline-none focus:border-orange-500">
-                                <option value="semana">Esta semana (Dom-Sab)</option>
-                                <option value="30_dias">Últimos 30 días</option>
-                                <option value="mes_actual">Mes Actual</option>
-                                <option value="mes_anterior">Mes Anterior</option>
+                                <option value="mes_actual">Mes Actual Completo</option>
+                                <option value="cuarto_1">Semana 1 (Días 1 al 7)</option>
+                                <option value="cuarto_2">Semana 2 (Días 8 al 14)</option>
+                                <option value="cuarto_3">Semana 3 (Días 15 al 21)</option>
+                                <option value="cuarto_4">Semana 4 (Días 22 al final)</option>
+                                <option value="mes_pasado">Mes Anterior</option>
                             </select>
                         </div>
                     </div>
@@ -848,7 +890,7 @@ export default function Admin() {
                                         <span className="text-gray-400 text-sm truncate pr-2"><span className="text-blue-500/50 font-bold mr-2">🔻</span>{item.nombre}</span>
                                         <span className="font-mono bg-gray-900 px-2 rounded border border-gray-700 text-blue-300">{item.vendidos}</span>
                                     </div>
-                                )) : <p className="text-gray-500 text-sm">Sin datos suficientes</p>}
+                                )) : <p className="text-gray-500 text-sm">Sin datos suficientes o todos los productos tienen 0 ventas</p>}
                             </div>
                         </div>
                     </div>
@@ -944,55 +986,67 @@ export default function Admin() {
                             <div className="text-center py-10 text-gray-500">No se encontraron productos con "{search}"</div>
                         )}
                         
-                        {processedInventory.map(cat => (
-                            <div key={cat.id}>
-                                <div className="flex justify-between items-center border-b border-gray-800 pb-2 mb-3">
-                                    <div>
-                                        <h2 className="text-orange-500 font-bold text-lg break-words">{cat.nombre}</h2>
-                                        {cat.nota_preparacion && <p className="text-xs text-gray-500 break-words">{cat.nota_preparacion}</p>}
-                                    </div>
-                                    <div className="flex gap-2 shrink-0">
-                                        <button onClick={()=>setModal({open:true, type:'category', editItem:cat})} className="bg-blue-900/20 text-blue-500 p-2 rounded-lg hover:bg-blue-900/40"><Icons.Edit/></button>
-                                        <button onClick={()=>deleteCategory(cat.id)} className="bg-red-900/20 text-red-500 p-2 rounded-lg hover:bg-red-900/40"><Icons.Trash/></button>
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {cat.items.map(item => (
-                                        <div key={item.id} className={`relative p-3 rounded-xl border flex flex-col justify-between ${item.disponible ? 'bg-gray-800 border-gray-700' : 'bg-gray-900 border-red-900/50 opacity-60'}`}>
-                                            <div className="absolute top-2 right-2 flex gap-1">
-                                                <button onClick={()=>setModal({open:true, type:'product', editItem:item})} className="text-gray-500 hover:text-blue-500 p-1"><Icons.Edit/></button>
-                                                <button onClick={()=>deleteProduct(item)} className="text-gray-500 hover:text-red-500 p-1"><Icons.Trash/></button>
+                        {processedInventory.map(cat => {
+                            const isDraggable = search === '' && activeCat === 'Todas';
+                            return (
+                                <div 
+                                    key={cat.id}
+                                    draggable={isDraggable}
+                                    onDragStart={(e) => handleDragStart(e, cat.id)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, cat.id)}
+                                    className={`transition-all ${isDraggable ? 'bg-gray-800/20 p-2 rounded-xl border border-transparent hover:border-gray-700' : ''}`}
+                                >
+                                    <div className="flex justify-between items-center border-b border-gray-800 pb-2 mb-3">
+                                        <div className="flex items-center gap-3">
+                                            {isDraggable && <div title="Arrastrar para reordenar"><Icons.Drag /></div>}
+                                            <div>
+                                                <h2 className="text-orange-500 font-bold text-lg break-words">{cat.nombre}</h2>
+                                                {cat.nota_preparacion && <p className="text-xs text-gray-500 break-words">{cat.nota_preparacion}</p>}
                                             </div>
-                                            <div className="mb-2 pr-12 min-w-0 break-words">
-                                                <h3 className="font-bold leading-tight text-sm">
-                                                    {item.nombre}
-                                                    {item.video_url && <span className="ml-2 text-[10px] bg-blue-900/50 text-blue-400 px-1.5 py-0.5 rounded border border-blue-800 align-middle inline-block mt-1">🎥 Vid</span>}
-                                                    {item.image_url && <span className="ml-1 text-[10px] bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded border border-purple-800 align-middle inline-block mt-1">🖼️ Img</span>}
-                                                </h3>
-                                                
-                                                {item.descripcion && <p className="text-gray-500 text-[10px] mt-1 line-clamp-2 leading-tight break-words">{item.descripcion}</p>}
-                                                
-                                                <div className="flex items-center mt-1">
-                                                    <span className="text-gray-500 text-xs">$</span>
-                                                    <input type="number" defaultValue={item.precio} onBlur={(e) => { if(e.target.value != item.precio) guardarPrecio(item.id, parseFloat(e.target.value)) }} className="bg-transparent text-gray-400 text-sm font-bold w-16 outline-none border-b border-gray-700 focus:border-orange-500 focus:text-white" />
-                                                </div>
-                                                
-                                                {item.removables && item.removables.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-2">
-                                                        {item.removables.map((t, idx) => <span key={idx} className="text-[9px] bg-gray-700 text-gray-300 px-1.5 rounded border border-gray-600">Sin {t}</span>)}
-                                                    </div>
-                                                )}
-                                                {item.extras && item.extras.length > 0 && (
-                                                    <p className="text-[10px] text-gray-500 mt-2 italic">Contiene {item.extras.length} extra(s) config.</p>
-                                                )}
-                                            </div>
-                                            <button onClick={()=>toggleProduct(item.id, item.disponible)} className={`w-full py-2 rounded-lg text-xs font-bold transition-colors ${item.disponible ? 'bg-green-600/20 text-green-400 border border-green-600/50' : 'bg-red-600/20 text-red-400 border border-red-600/50'}`}>{item.disponible ? 'DISPONIBLE' : 'AGOTADO'}</button>
                                         </div>
-                                    ))}
+                                        <div className="flex gap-2 shrink-0">
+                                            <button onClick={()=>setModal({open:true, type:'category', editItem:cat})} className="bg-blue-900/20 text-blue-500 p-2 rounded-lg hover:bg-blue-900/40"><Icons.Edit/></button>
+                                            <button onClick={()=>deleteCategory(cat.id)} className="bg-red-900/20 text-red-500 p-2 rounded-lg hover:bg-red-900/40"><Icons.Trash/></button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {cat.items.map(item => (
+                                            <div key={item.id} className={`relative p-3 rounded-xl border flex flex-col justify-between ${item.disponible ? 'bg-gray-800 border-gray-700' : 'bg-gray-900 border-red-900/50 opacity-60'}`}>
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                    <button onClick={()=>setModal({open:true, type:'product', editItem:item})} className="text-gray-500 hover:text-blue-500 p-1"><Icons.Edit/></button>
+                                                    <button onClick={()=>deleteProduct(item)} className="text-gray-500 hover:text-red-500 p-1"><Icons.Trash/></button>
+                                                </div>
+                                                <div className="mb-2 pr-12 min-w-0 break-words">
+                                                    <h3 className="font-bold leading-tight text-sm">
+                                                        {item.nombre}
+                                                        {item.image_url && <span className="ml-1 text-[10px] bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded border border-purple-800 align-middle inline-block mt-1">🖼️ Img</span>}
+                                                    </h3>
+                                                    
+                                                    {item.descripcion && <p className="text-gray-500 text-[10px] mt-1 line-clamp-2 leading-tight break-words">{item.descripcion}</p>}
+                                                    
+                                                    <div className="flex items-center mt-1">
+                                                        <span className="text-gray-500 text-xs">$</span>
+                                                        <input type="number" defaultValue={item.precio} onBlur={(e) => { if(e.target.value != item.precio) guardarPrecio(item.id, parseFloat(e.target.value)) }} className="bg-transparent text-gray-400 text-sm font-bold w-16 outline-none border-b border-gray-700 focus:border-orange-500 focus:text-white" />
+                                                    </div>
+                                                    
+                                                    {item.removables && item.removables.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                            {item.removables.map((t, idx) => <span key={idx} className="text-[9px] bg-gray-700 text-gray-300 px-1.5 rounded border border-gray-600">Sin {t}</span>)}
+                                                        </div>
+                                                    )}
+                                                    {item.extras && item.extras.length > 0 && (
+                                                        <p className="text-[10px] text-gray-500 mt-2 italic">Contiene {item.extras.length} extra(s) config.</p>
+                                                    )}
+                                                </div>
+                                                <button onClick={()=>toggleProduct(item.id, item.disponible)} className={`w-full py-2 rounded-lg text-xs font-bold transition-colors ${item.disponible ? 'bg-green-600/20 text-green-400 border border-green-600/50' : 'bg-red-600/20 text-red-400 border border-red-600/50'}`}>{item.disponible ? 'DISPONIBLE' : 'AGOTADO'}</button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 </div>
             )}
@@ -1000,26 +1054,6 @@ export default function Admin() {
             {view === 'settings' && configForm && (
                 <div className="p-4 animate-card max-w-2xl mx-auto space-y-6 w-full">
                     <form onSubmit={saveStoreSettings}>
-                        
-                        <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
-                            <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Identidad Web</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-gray-400 text-xs mb-1">Slug (Identificador URL)</label>
-                                    <div className="flex flex-col sm:flex-row items-center gap-2">
-                                        <span className="text-gray-500 text-sm">dominio.com/menu?tienda=</span>
-                                        <input type="text" placeholder="mi-negocio" value={configForm.slug || ''} onChange={e=>setConfigForm({...configForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" />
-                                    </div>
-                                    <p className="text-[11px] text-red-400 mt-1">⚠️ Cuidado: Si cambias esto, los códigos QR antiguos dejarán de funcionar.</p>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-400 text-xs mb-1">Dominio Personal (Premium Opcional)</label>
-                                    <input type="text" placeholder="ej: www.mirestaurante.com" value={configForm.dominio_personal || ''} onChange={e=>setConfigForm({...configForm, dominio_personal: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" />
-                                    <p className="text-[11px] text-gray-500 mt-1">Solo llénalo si has conectado un dominio propio con nosotros.</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg mb-6 w-full overflow-hidden">
                             <h3 className="text-orange-400 font-bold mb-4 uppercase tracking-widest text-sm border-b border-gray-700 pb-2">Logotipo del Restaurante</h3>
                             <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -1060,6 +1094,7 @@ export default function Admin() {
                             <div className="space-y-4">
                                 <div><label className="block text-gray-400 text-xs mb-1">Nombre Comercial</label><input type="text" required value={configForm.nombre} onChange={e=>setConfigForm({...configForm, nombre: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" /></div>
                                 <div><label className="block text-gray-400 text-xs mb-1">Teléfono (WhatsApp Recepción)</label><input type="text" required value={configForm.telefono_whatsapp} onChange={e=>setConfigForm({...configForm, telefono_whatsapp: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" /></div>
+                                <div><label className="block text-gray-400 text-xs mb-1">Pedido Mínimo a Domicilio ($)</label><input type="number" step="any" required value={configForm.pedido_minimo || 0} onChange={e=>setConfigForm({...configForm, pedido_minimo: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" /></div>
                                 <div><label className="block text-gray-400 text-xs mb-1">Mensaje de Bienvenida (Top App)</label><input type="text" value={configForm.mensaje_bienvenida || ''} onChange={e=>setConfigForm({...configForm, mensaje_bienvenida: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" /></div>
                                 <div><label className="block text-gray-400 text-xs mb-1">Mensaje de Cierre (Cuando apagas la tienda)</label><input type="text" value={configForm.mensaje_cerrado || ''} onChange={e=>setConfigForm({...configForm, mensaje_cerrado: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 outline-none focus:border-orange-500" /></div>
                             </div>
@@ -1140,7 +1175,7 @@ export default function Admin() {
                 </div>
             )}
 
-            <Modal isOpen={modal.open} type={modal.type} editItem={modal.editItem} categories={categories} onClose={()=>setModal({open:false, type:null, editItem:null})} onSave={saveItem} />
+            <Modal isOpen={modal.open} type={modal.type} editItem={modal.editItem} categories={categories} products={products} tienda={tienda} onClose={()=>setModal({open:false, type:null, editItem:null})} onSave={saveItem} />
             <Ticket order={ticketOrder} tienda={tienda}/>
         </div>
     );
