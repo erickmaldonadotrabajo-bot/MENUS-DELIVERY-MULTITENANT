@@ -248,7 +248,7 @@ export default function Menu() {
 
     const requestLocation = () => {
         if (!navigator.geolocation) return setLocation(prev => ({ ...prev, status: 'error' }));
-        if(!window.confirm(`📍 Necesitamos verificar tu zona de entrega.\n\nACEPTAR para continuar.`)) return;
+        if(!window.confirm(`📍 Clic para obtener ubicación de entrega\nTu Ubicación actual\n\nACEPTAR para continuar.`)) return;
         
         setLocation(prev => ({ ...prev, status: 'loading' }));
         
@@ -274,7 +274,7 @@ export default function Menu() {
             },
             (err) => { 
                 setLocation(prev => ({ ...prev, status: 'error' })); 
-                showNotification("⚠️ No pudimos obtener tu ubicación."); 
+                showNotification("⚠️ No pudimos obtener tu ubicación.\n Haz tu pedido PICKUP\n Envianos tu ubicación ACTUAL por WhatsApp."); 
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
         );
