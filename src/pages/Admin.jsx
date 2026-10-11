@@ -320,8 +320,30 @@ export default function Admin() {
                     <h1 className="text-2xl font-black tracking-wide mb-2">Panel Administrativo</h1>
                     <p className="text-gray-400 text-sm mb-6">Ingresa con tu correo y contraseña</p>
                     <form onSubmit={handleLoginSubmit} className="space-y-4">
-                        <input type="email" required placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={isLoggingIn} />
-                        <input type="password" required placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" disabled={isLoggingIn} />
+                        <input 
+                             type="email" 
+                            id="admin-email"
+                            name="email"
+                            autoComplete="username"
+                            required 
+                            placeholder="Correo electrónico" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" 
+                            disabled={isLoggingIn} 
+                        />
+                        <input 
+                            type="password" 
+                            id="admin-password"
+                            name="password"
+                            autoComplete="current-password"
+                            required 
+                            placeholder="Contraseña" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            className="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-white text-center outline-none focus:border-orange-500 shadow-inner" 
+                                disabled={isLoggingIn} 
+                        />
                         {loginErrorState && <p className="text-red-500 text-xs font-bold">Credenciales incorrectas o sin acceso a esta tienda.</p>}
                         <button type="submit" disabled={isLoggingIn} className="w-full bg-orange-600 hover:bg-orange-500 font-bold py-4 rounded-xl shadow-lg transition-all text-lg active:scale-95 disabled:opacity-50">
                             {isLoggingIn ? 'Verificando...' : 'INGRESAR AL PANEL'}

@@ -11,7 +11,14 @@ export const InventoryView = ({
             <div className="sticky top-[130px] z-40 bg-gray-900/95 backdrop-blur py-3 -mx-4 px-4 border-b border-gray-800 flex flex-col gap-3">
                 <div className="flex gap-2">
                     <div className="relative flex-1">
-                        <input type="text" placeholder="Buscar producto en vivo..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full bg-gray-800 p-3 pl-10 rounded-xl border border-gray-700 focus:border-orange-500 outline-none"/>
+                        <input 
+                            type="text" 
+                            id="search-inventory" 
+                            name="search-inventory" 
+                            placeholder="Buscar producto en vivo..." 
+                            value={search} 
+                            onChange={e=>setSearch(e.target.value)} 
+                            className="w-full bg-gray-800 p-3 pl-10 rounded-xl border border-gray-700 focus:border-orange-500 outline-none"/>
                         <div className="absolute left-3 top-3.5 text-gray-500"><AdminIcons.Search/></div>
                         {search && <button onClick={() => setSearch('')} className="absolute right-3 top-3.5 text-gray-500 hover:text-white"><AdminIcons.X/></button>}
                     </div>
@@ -80,7 +87,13 @@ export const InventoryView = ({
                                         
                                         <div className="flex items-center mt-1">
                                             <span className="text-gray-500 text-xs">$</span>
-                                            <input type="number" defaultValue={item.precio} onBlur={(e) => { if(e.target.value != item.precio) guardarPrecio(item.id, parseFloat(e.target.value)) }} className="bg-transparent text-gray-400 text-sm font-bold w-16 outline-none border-b border-gray-700 focus:border-orange-500 focus:text-white" />
+                                            <input 
+                                                id={`quick-price-${item.id}`}
+                                                name={`quick-price-${item.id}`}
+                                                type="number" 
+                                                defaultValue={item.precio} 
+                                                onBlur={(e) => { if(e.target.value != item.precio) guardarPrecio(item.id, parseFloat(e.target.value)) }} 
+                                                className="bg-transparent text-gray-400 text-sm font-bold w-16 outline-none border-b border-gray-700 focus:border-orange-500 focus:text-white" />
                                         </div>
                                         
                                         {item.removables && item.removables.length > 0 && (

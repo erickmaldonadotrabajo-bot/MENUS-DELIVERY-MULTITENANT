@@ -269,7 +269,7 @@ export default function Menu() {
                     showNotification(`✅ Estás en ${matchedTier.name}. Tarifa: $${matchedTier.cost}`);
                 } else {
                     setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, status: 'success', allowed: false, shippingCost: 0, zoneName: 'Error de tarifa', distance: distKm });
-                    alert(`⚠️ Algo salió mal al calcular la tarifa.`);
+                    alert(`⚠️ Algo salió mal al obtener la ubicación, porfavor haz tu pedido PICKUP y envía tu ubicación actual por WhatsApp.`);
                 }
             },
             (err) => { 
@@ -432,7 +432,7 @@ export default function Menu() {
                                 {orderType === 'delivery' && (
                                     <div className="space-y-2">
                                         <Button onClick={requestLocation} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
-                                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Fuera de Rango`) : '📍 Calcular Tarifa de Envío'}
+                                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Fuera de Rango, Puedes pedir PICKUP`) : '📍 Clic para obtener ubicación de entrega (Ubicación actual) max 2km'}
                                         </Button>
                                     </div>
                                 )}
