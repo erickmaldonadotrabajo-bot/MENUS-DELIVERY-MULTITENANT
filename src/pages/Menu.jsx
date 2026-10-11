@@ -248,7 +248,7 @@ export default function Menu() {
 
     const requestLocation = () => {
         if (!navigator.geolocation) return setLocation(prev => ({ ...prev, status: 'error' }));
-        if(!window.confirm(`📍 Clic para obtener ubicación de entrega\nTu Ubicación actual\n\nACEPTAR para continuar.`)) return;
+        if(!window.confirm(`📍 Clic para obtener ubicación de entrega\n\n Tu Ubicación actual\n\n ACEPTAR para continuar.`)) return;
         
         setLocation(prev => ({ ...prev, status: 'loading' }));
         
