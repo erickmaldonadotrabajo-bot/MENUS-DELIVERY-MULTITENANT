@@ -70,14 +70,31 @@ export const useStoreData = (parametroTienda) => {
     }, [parametroTienda]);
 
     const processedMenu = useMemo(() => {
+        //Sanitización estricta (O(1)): Se ejecuta una sola vez por renderizado.
+        const safeSearchTerm = (searchTerm || '').toLowerCase().trim();
+        
         let activeCats = categoriesDB;
-        if (!searchTerm && activeCategory) activeCats = categoriesDB.filter(c => c.nombre === activeCategory);
+        if (!safeSearchTerm && activeCategory) {
+            activeCats = categoriesDB.filter(c => c.nombre === activeCategory);
+        }
         
         return activeCats.map(cat => {
-            let catItems = menuItemsDB.filter(item => item.categoria_id === cat.id && item.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
-            catItems.sort((a, b) => a.orden - b.orden);
-            return { id: cat.id, category: cat.nombre, prepNote: cat.nota_preparacion, items: catItems };
-        }).filter(cat => cat.items.length > 0 || searchTerm); 
+            // Filtrado optimizado. Evaluamos safeSearchTerm directamente.
+            let catItems = menuItemsDB.filter(item => {
+                if (item.categoria_id !== cat.id) return false;
+                if (!safeSearchTerm) return true;
+                return (item.nombre || '').toLowerCase().includes(safeSearchTerm);
+            });
+            
+            catItems.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+            return { 
+                id: cat.id, 
+                category: cat.nombre, 
+                prepNote: cat.nota_preparacion, 
+                items: catItems 
+            };
+        }).filter(cat => cat.items.length > 0 || safeSearchTerm !== ''); 
+        
     }, [categoriesDB, menuItemsDB, searchTerm, activeCategory]);
 
     return {

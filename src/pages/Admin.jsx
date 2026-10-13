@@ -55,29 +55,43 @@ export default function Admin() {
     const autoPrintRef = useRef(autoPrint);
 
     // Efectos Base
+    // Efectos Base (El del CSS que ya tenías)
     useEffect(() => {
         const style = document.createElement('style');
-        style.innerHTML = `
-            body { font-family: 'Poppins', sans-serif; background-color: #111827; color: white; }
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            .animate-card { animation: fade-in-up 0.3s ease-out forwards; }
-            @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
-            .toggle-checkbox:checked { right: 0; border-color: #68D391; }
-            .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
-            .loader { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #f97316; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto;}
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            @media print {
-                @page { size: 58mm auto; margin: 0mm; }
-                body { margin: 0; padding: 0; background-color: white; }
-                body * { visibility: hidden; height: 0; overflow: hidden; }
-                #ticket-area { visibility: visible; position: absolute; left: 0 !important; top: 0 !important; width: 58mm !important; height: auto !important; overflow: visible !important; padding: 5px 10px 20px 5px; z-index: 9999; background-color: white !important; color: black !important; font-family: 'Courier New', Courier, monospace; line-height: 1.1; }
-                #ticket-area * { visibility: visible; height: auto; color: black !important; }
-            }
-        `;
+        // ... (tu CSS actual)
         document.head.appendChild(style);
         return () => document.head.removeChild(style);
     }, []);
+
+    // >>> PEGA AQUÍ EL NUEVO EFECTO DEL ENGRANE <<<
+    useEffect(() => {
+        document.title = "Panel de Control - Admin";
+        const gearIcon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>";
+        
+        let linkIcon = document.querySelector("link[rel~='icon']");
+        let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+
+        if (!linkIcon) {
+            linkIcon = document.createElement('link');
+            linkIcon.rel = 'icon';
+            document.head.appendChild(linkIcon);
+        }
+        if (!appleIcon) {
+            appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            document.head.appendChild(appleIcon);
+        }
+
+        linkIcon.href = gearIcon;
+        appleIcon.href = gearIcon;
+
+        return () => {
+            document.title = "Menú Digital";
+        };
+    }, []);
+    // >>> FIN DEL NUEVO EFECTO <<<
+
+    useEffect(() => { if (tienda) setConfigForm(tienda); }, [tienda]);
 
     useEffect(() => { if (tienda) setConfigForm(tienda); }, [tienda]);
 
@@ -152,10 +166,22 @@ export default function Admin() {
     };
     
     const deleteProduct = async (item) => { 
-        if(!confirm("¿Borrar producto?")) return; 
-        if (item.image_url) await supabase.storage.from('productos').remove([item.image_url.split('/').pop()]);
+        if(!confirm("¿ALERTA: Borrar producto de forma permanente?")) return; 
+        
+        // Solo intentamos borrar de Supabase si la URL le pertenece
+        if (item.image_url && item.image_url.includes('supabase.co')) {
+            try {
+                await supabase.storage.from('productos').remove([item.image_url.split('/').pop()]);
+            } catch (err) {
+                console.warn("No se pudo borrar la imagen heredada de Supabase", err);
+            }
+        }
+        
+        // Las URLs de Cloudinary se quedarán huérfanas intencionalmente por seguridad del frontend
+        
         updateLocalProducts(products.filter(p => p.id !== item.id)); 
         await supabase.from('menu_items').delete().eq('id', item.id); 
+        showToast("Producto eliminado");
     };
     
     const deleteCategory = async (id) => { 

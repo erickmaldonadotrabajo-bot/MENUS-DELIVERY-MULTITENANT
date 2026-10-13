@@ -80,7 +80,7 @@ export default function Home() {
               { src: data.logo_url, sizes: "192x192", type: "image/png" },
               { src: data.logo_url, sizes: "512x512", type: "image/png", purpose: "any maskable" }
             ]
-          };
+          }; // <-- AQUÍ ESTÁ LA LLAVE DE CIERRE QUE FALTABA
           
           const manifestBlob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
           const manifestLink = document.createElement('link');
@@ -88,7 +88,7 @@ export default function Home() {
           manifestLink.href = URL.createObjectURL(manifestBlob);
           document.head.appendChild(manifestLink);
 
-          // 2. INYECCIÓN DINÁMICA DEL FAVICON (Pestaña del navegador)
+          // 2. INYECCIÓN DINÁMICA DEL FAVICON
           let linkIcon = document.querySelector("link[rel~='icon']");
           if (!linkIcon) {
             linkIcon = document.createElement('link');
@@ -97,7 +97,7 @@ export default function Home() {
           }
           linkIcon.href = data.logo_url;
 
-          // 3. INYECCIÓN DEL APPLE TOUCH ICON (Para accesos directos en iOS/iPhone)
+          // 3. INYECCIÓN DEL APPLE TOUCH ICON
           let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
           if (!appleIcon) {
             appleIcon = document.createElement('link');
@@ -105,6 +105,15 @@ export default function Home() {
             document.head.appendChild(appleIcon);
           }
           appleIcon.href = data.logo_url;
+
+          // 4. INYECCIÓN OPEN GRAPH (Para vista previa de enlaces y Share Sheet nativo)
+          let ogImage = document.querySelector("meta[property='og:image']");
+          if (!ogImage) {
+            ogImage = document.createElement('meta');
+            ogImage.setAttribute('property', 'og:image');
+            document.head.appendChild(ogImage);
+          }
+          ogImage.setAttribute('content', data.logo_url);
         }
 
         setTienda(data);
@@ -120,19 +129,33 @@ export default function Home() {
 
   // FUNCIÓN PARA COMPARTIR NATIVO
   const handleShare = async () => {
+    // 1. Preparamos los metadatos dinámicos
+    const shareTitle = tienda?.nombre ? `Menú de ${tienda.nombre}` : 'Menú Digital';
+    const shareText = `Mira el menú de ${tienda?.nombre || 'esta tienda'} y pide algo buenísimo 🔥`;
+    const shareUrl = window.location.href;
+
+    // 2. Intentamos usar la API nativa de compartir del celular
     if (navigator.share) {
       try {
         await navigator.share({
-          title: tienda.nombre,
-          text: `¡Mira el menú de ${tienda.nombre} y realiza tu pedido!`,
-          url: window.location.href 
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl
         });
-      } catch (err) { 
-        console.log('Error compartiendo:', err); 
+      } catch (error) {
+        // El usuario canceló o cerró la ventana de compartir, ignoramos el error
+        if (error.name !== 'AbortError') {
+            console.error("Error al compartir:", error);
+        }
       }
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("¡Enlace copiado al portapapeles!");
+      // 3. Fallback defensivo para navegadores de escritorio viejos o PC
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        alert("¡Enlace copiado al portapapeles!");
+      } catch (err) {
+        console.error("Error copiando al portapapeles:", err);
+      }
     }
   };
 
@@ -238,12 +261,21 @@ export default function Home() {
 
           <button 
             onClick={handleShare} 
-            className="flex items-center justify-center gap-2 w-full bg-gray-800 text-white font-bold text-lg py-4 rounded-2xl border-2 hover:bg-gray-700 active:scale-95 transition-all" 
-            style={{ borderColor: tienda.color_primario || '#374151' }}
+            className="flex items-center justify-center gap-3 w-full bg-gray-800 text-white font-bold text-lg py-4 rounded-2xl border-2 hover:bg-gray-700 active:scale-95 transition-all shadow-lg" 
+            style={{ borderColor: tienda?.color_primario || '#374151' }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-            </svg>
+            {tienda?.logo_url ? (
+              <img 
+                src={tienda.logo_url} 
+                alt={`Logo ${tienda?.nombre || 'Tienda'}`} 
+                className="w-7 h-7 object-cover rounded-full border border-gray-600 bg-gray-900"
+                loading="lazy"
+              />
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            )}
             COMPARTIR TIENDA
           </button>
         </div>

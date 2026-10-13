@@ -59,52 +59,19 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
         const currentUrl = form[field];
         if (currentUrl) {
             if (confirm(`¿Estás seguro de eliminar esta imagen?`)) {
-                await deleteOldFileFromBucket(currentUrl);
+                
+                // Solo intenta borrar el archivo si pertenece a Supabase
+                if (currentUrl.includes('supabase.co')) {
+                    await deleteOldFileFromBucket(currentUrl);
+                }
+                // Si es de Cloudinary, simplemente la quitamos del estado local (Soft delete)
+                
                 setForm(prev => ({ ...prev, [field]: null }));
             }
         }
     };
 
-    const compressImage = async (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1000;
-                    const MAX_HEIGHT = 1000;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    } else {
-                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    canvas.toBlob((blob) => {
-                        if (!blob) return reject(new Error("Falló la compresión"));
-                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-                            type: 'image/webp',
-                            lastModified: Date.now(),
-                        });
-                        resolve(compressedFile);
-                    }, 'image/webp', 0.8);
-                };
-                img.onerror = (error) => reject(error);
-            };
-            reader.onerror = (error) => reject(error);
-        });
-    };
-
+    // NUEVA FUNCIÓN DIRECTA A CLOUDINARY
     const handleMediaUpload = async (e, field) => {
         let file = e.target.files[0];
         if (!file) return;
@@ -112,7 +79,9 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
         if (file.size > 10 * 1024 * 1024) return alert("⚠️ Imagen demasiado pesada (Máx 10MB).");
         if (!file.type.startsWith('image/')) return alert("⚠️ Selecciona una IMAGEN válida.");
 
-        const MAX_PHOTOS = tienda?.tiene_panel_admin ? 25 : 10;
+        // Lógica de límite de fotos (mantenemos tu validación de 25 o 50)
+        // Ajustado a 50 como mencionaste en tu estrategia de negocio.
+        const MAX_PHOTOS = tienda?.tiene_panel_admin ? 50 : 25; 
         const currentPhotoCount = products.filter(p => p.image_url).length;
         
         if (currentPhotoCount >= MAX_PHOTOS && !form.image_url) {
@@ -121,19 +90,37 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
         }
 
         setUploadingField(field);
+        
         try {
-            file = await compressImage(file);
-            const fileName = `${Date.now()}_${file.name}`;
-            
-            const { data, error } = await supabase.storage.from('productos').upload(fileName, file);
-            if (error) throw error;
+            // 1. Preparamos el Payload para Cloudinary
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'menu_productos'); // Tu preset Unsigned
+            // Opcional: Agregar un tag para buscar más fácil en el dashboard de Cloudinary
+            formData.append('tags', `tienda_${tienda?.id || 'desconocida'}`);
 
-            const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName);
-            setForm(prev => ({ ...prev, [field]: publicUrl }));
+            // 2. Disparamos directo a la API de Cloudinary (Reemplaza CLOUD_NAME por b44n7b69)
+            const CLOUD_NAME = 'b44n7b69'; 
+            const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
+            const response = await fetch(cloudinaryUrl, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'Error en Cloudinary');
+            }
+
+            const data = await response.json();
+            
+            // 3. Cloudinary nhos devuelve la 'secure_url' optimizada. La guardamos en el estado.
+            setForm(prev => ({ ...prev, [field]: data.secure_url }));
 
         } catch (error) {
-            console.error(error);
-            alert("Error al subir la imagen.");
+            console.error("Error al subir a Cloudinary:", error);
+            alert("Error al subir la imagen. Verifica tu conexión.");
         } finally {
             setUploadingField(null);
         }
