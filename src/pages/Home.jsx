@@ -180,7 +180,7 @@ export default function Home() {
         <img 
           src={tienda.logo_url || "https://cdn-icons-png.flaticon.com/512/900/900797.png"} 
           alt="Logo" 
-          className="w-40 h-40 rounded-full mx-auto mb-6 object-cover border-4 shadow-[0_0_25px_rgba(0,0,0,0.5)]" 
+          className="w-80 h-80 rounded-full mx-auto mb-6 object-cover border-4 shadow-[0_0_25px_rgba(0,0,0,0.5)]" 
           style={{ 
             borderColor: tienda.color_primario || '#f97316', 
             boxShadow: `0 0 25px ${tienda.color_primario || '#f97316'}`,

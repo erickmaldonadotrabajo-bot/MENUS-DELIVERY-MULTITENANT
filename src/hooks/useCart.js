@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export const useCart = (storeConfig, customer, orderType, location) => {
+export const useCart = (storeConfig, customer = {}, orderType, location = {}) => {
     // 1. Estado inicial del carrito
     const [cart, setCart] = useState([]);
     const [cartAnimate, setCartAnimate] = useState(false);

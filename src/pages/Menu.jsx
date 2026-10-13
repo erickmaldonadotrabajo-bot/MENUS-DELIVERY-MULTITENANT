@@ -9,161 +9,13 @@ import { Button } from '../components/ui/Button';
 import { MediaModal } from '../components/ui/MediaModal';
 import { DynamicStyles } from '../components/ui/DynamicStyles';
 import { CartCheckout } from '../components/ui/CartCheckout';
+import { ProductItem } from '../components/ui/ProductItem';
 
 // hooks
 import { useCart } from '../hooks/useCart';
 import { useStoreData } from '../hooks/useStoreData';
 import { useCheckout } from '../hooks/useCheckout';
-
-
-const ProductItem = memo(({ item, category, onAdd, config, onShowMedia }) => {
-    const [conTodo, setConTodo] = useState(true);
-    const [exclusions, setExclusions] = useState({});
-    const [selectedExtras, setSelectedExtras] = useState([]); 
-    
-    const isAvailable = item.disponible;
-    const availableToppings = useMemo(() => item.removables || [], [item]);
-
-    const parsedExtras = useMemo(() => {
-        if (Array.isArray(item.extras) && item.extras.length > 0) return item.extras;
-        if (item.has_extra && item.extra_name) return [{ nombre: item.extra_name, precio: item.extra_precio }];
-        return [];
-    }, [item.extras, item.has_extra, item.extra_name, item.extra_precio]);
-
-    const extrasTotal = selectedExtras.reduce((sum, ext) => sum + (parseFloat(ext.precio) || 0), 0);
-    const currentPrice = parseFloat(item.precio) + extrasTotal;
-    
-    useEffect(() => { 
-        setConTodo(true); 
-        setExclusions({}); 
-        setSelectedExtras([]);
-    }, [item.nombre]);
-    
-    const toggleConTodo = useCallback(() => { 
-        if (!conTodo) { setConTodo(true); setExclusions({}); } 
-    }, [conTodo]);
-    
-    const toggleExclusion = useCallback((topping) => { 
-        setExclusions(prev => { 
-            const newState = !prev[topping]; 
-            const newExclusions = { ...prev, [topping]: newState }; 
-            const anyExcluded = Object.values(newExclusions).some(val => val === true); 
-            setConTodo(!anyExcluded); 
-            return newExclusions; 
-        }); 
-    }, []);
-
-    const toggleExtra = useCallback((extra) => {
-        setSelectedExtras(prev => {
-            const isSelected = prev.find(e => e.nombre === extra.nombre);
-            if (isSelected) return prev.filter(e => e.nombre !== extra.nombre);
-            return [...prev, extra];
-        });
-    }, []);
-    
-    const handleAdd = useCallback(() => { 
-        let details = ""; 
-        const activeExclusions = Object.entries(exclusions).filter(([_, isExcluded]) => isExcluded).map(([name]) => name); 
-        
-        if (availableToppings.length === 0) details = ""; 
-        else if (conTodo) details = " (Con Todo)"; 
-        else if (activeExclusions.length === availableToppings.length) details = " (SIN NADA / SOLO)"; 
-        else if (activeExclusions.length > 0) details = ` (SIN ${activeExclusions.join(', SIN ')})`; 
-        else details = " (Con Todo)"; 
-        
-        const hasAnyExtra = selectedExtras.length > 0;
-        const extrasNombres = selectedExtras.map(e => e.nombre).join(', ');
-
-        onAdd({ 
-            ...item, 
-            name: item.nombre, 
-            price: currentPrice, 
-            isExtra: hasAnyExtra, 
-            extraAppliedName: extrasNombres, 
-            details: details 
-        }); 
-
-        setSelectedExtras([]);
-        setConTodo(true);
-        setExclusions({});
-    }, [exclusions, conTodo, availableToppings, onAdd, item, currentPrice, selectedExtras]);
-
-    return (
-        <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 p-5 flex flex-col animate-slide-up h-full ${!isAvailable ? 'opacity-60 bg-gray-100' : ''}`}>
-            <div className="p-2 flex-grow">
-                <div className="flex justify-between items-start mb-2">
-                    <div>
-                        <h3 className="font-bold text-gray-900 text-xl leading-tight">{item.nombre}</h3>
-                    </div>
-                    <div className="flex flex-col items-end shrink-0">
-                        <span className="bg-orange-50 text-[var(--color-primary)] px-3 py-1 rounded-lg font-bold text-lg whitespace-nowrap ml-2 border border-[var(--color-primary)]/20">
-                            ${currentPrice.toFixed(2)}
-                        </span>
-                        {!isAvailable && <span className="text-xs bg-red-600 text-white px-2 py-1 rounded mt-1 font-bold">AGOTADO</span>}
-                    </div>
-                </div>
-
-                {item.descripcion && (
-                    <p className="text-sm text-gray-500 mb-3 leading-snug break-words">{item.descripcion}</p>
-                )}
-
-                {item.image_url && (
-                    <button 
-                        onClick={() => onShowMedia({ url: item.image_url, type: 'image' })} 
-                        className="mb-4 flex items-center gap-1 bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-orange-600 transition-colors shadow-sm"
-                    >
-                        <Icons.Eye /> Ver Producto
-                    </button>
-                )}
-
-                {isAvailable && availableToppings.length > 0 && (
-                    <div className="mb-4 flex flex-col gap-2 pt-2 border-t border-gray-100">
-                        <p className='text-sm text-gray-500 mb-1 font-semibold'>Personalizar:</p>
-                        <label className="flex items-center gap-3 text-base font-bold text-gray-900 cursor-pointer select-none p-2 rounded bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
-                            <input type="checkbox" checked={conTodo} onChange={toggleConTodo} className="w-5 h-5 rounded" style={{accentColor: config.color_primario || '#f97316'}} />
-                            Con Todo
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 mt-1">
-                            {availableToppings.map(t => ( 
-                                <label key={t} className={`flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded border transition-colors ${exclusions[t] ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
-                                    <input type="checkbox" checked={exclusions[t] || false} onChange={() => toggleExclusion(t)} className="w-4 h-4 rounded" style={{accentColor: '#dc2626'}} />
-                                    Sin {t}
-                                </label> 
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {parsedExtras.length > 0 && isAvailable && (
-                    <div className="mb-4 flex flex-col gap-2 border-t border-gray-100 pt-3 mt-2">
-                        <p className='text-sm text-gray-500 mb-1 font-semibold'>Extras disponibles:</p>
-                        {parsedExtras.map((ext, idx) => {
-                            const isSelected = selectedExtras.some(e => e.nombre === ext.nombre);
-                            const extPrice = parseFloat(ext.precio) || 0;
-                            return (
-                                <div key={idx} onClick={() => toggleExtra(ext)} role="button" className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-[var(--color-primary)] bg-orange-50 ring-1 ring-[var(--color-primary)]' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-[var(--color-primary)] border-[var(--color-primary)]' : 'bg-white border-gray-400'}`}>
-                                            {isSelected && <Icons.Check size={14} className="text-white" />}
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-800">{ext.nombre}</span>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">+{extPrice > 0 ? `$${extPrice.toFixed(2)}` : 'Gratis'}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-            
-            <div className="p-4 pt-0 mt-auto">
-                <Button onClick={handleAdd} disabled={!isAvailable} className="w-full text-lg py-3" icon={Icons.Plus}>
-                    {isAvailable ? 'Agregar' : 'No disponible'}
-                </Button>
-            </div>
-        </div>
-    );
-});
+import { useDeliveryZone } from '../hooks/useDeliveryZone';
 
 // ==========================================
 // COMPONENTE PRINCIPAL
@@ -172,7 +24,6 @@ export default function Menu() {
     const [searchParams] = useSearchParams();
     const parametroTienda = searchParams.get('tienda');
     const categoriesRef = useRef(null);
-    const [activeMedia, setActiveMedia] = useState(null); 
 
     // 1. CARGA DE DATOS (Tenant) - Reemplaza los useState duplicados
     const {
@@ -188,10 +39,8 @@ export default function Menu() {
     } = useStoreData(parametroTienda);
     
     // 2. ESTADOS DEL CLIENTE Y PEDIDO (Deben existir antes de usar useCart)
-    const [orderType, setOrderType] = useState('delivery'); 
-    const [location, setLocation] = useState({ lat: null, lng: null, status: 'idle', shippingCost: 0, zoneName: '', distance: 0, allowed: false });
-    const [customer, setCustomer] = useState({ name: '', phone: '', customAnswers: {}, paymentMethod: '', paymentAmount: '', instructions: '', tip: '' });
-
+    const [orderType, setOrderType] = useState('delivery');
+    const [activeMedia, setActiveMedia] = useState(null); 
     // Estados UI adicionales
 
     const [showCart, setShowCart] = useState(false);
@@ -202,7 +51,8 @@ export default function Menu() {
         notification, totals, 
         addToCart, updateQty, 
         clearCart, showNotification
-    } = useCart(storeConfig, customer, orderType, location);
+    } = useCart(storeConfig,orderType);
+
 // 4. MOTOR DE TRANSACCIONES (Checkout)
     const {
         isSubmitting,
@@ -217,8 +67,7 @@ export default function Menu() {
         confirmAndSend
     } = useCheckout({
         storeConfig, 
-        cart, 
-        customer, 
+        cart,  
         location, 
         totals, 
         orderType,
@@ -245,41 +94,6 @@ export default function Menu() {
     };
 
     const handleCustomAnswer = (fieldId, value) => { setCustomer(prev => ({ ...prev, customAnswers: { ...prev.customAnswers, [fieldId]: value } })); };
-
-    const requestLocation = () => {
-        if (!navigator.geolocation) return setLocation(prev => ({ ...prev, status: 'error' }));
-        if(!window.confirm(`📍 Clic para obtener ubicación de entrega\n\n Tu Ubicación actual\n\n ACEPTAR para continuar.`)) return;
-        
-        setLocation(prev => ({ ...prev, status: 'loading' }));
-        
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const distKm = calculateDistance(storeConfig.latitud, storeConfig.longitud, pos.coords.latitude, pos.coords.longitude);
-                
-                if (distKm > storeConfig.max_delivery_radius) {
-                    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, status: 'success', allowed: false, shippingCost: 0, zoneName: 'Fuera de rango', distance: distKm });
-                    alert(`⚠️ FUERA DE COBERTURA\nEstás a ${distKm.toFixed(2)} km.\nLímite máximo: ${storeConfig.max_delivery_radius} km.`);
-                    return;
-                }
-                
-                const matchedTier = storeConfig.delivery_tiers.find(tier => distKm <= tier.maxDistance);
-                
-                if (matchedTier) {
-                    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, status: 'success', allowed: true, shippingCost: matchedTier.cost, zoneName: matchedTier.name, distance: distKm });
-                    showNotification(`✅ Estás en ${matchedTier.name}. Tarifa: $${matchedTier.cost}`);
-                } else {
-                    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, status: 'success', allowed: false, shippingCost: 0, zoneName: 'Error de tarifa', distance: distKm });
-                    alert(`⚠️ Algo salió mal al obtener la ubicación, porfavor haz tu pedido PICKUP y envía tu ubicación actual por WhatsApp.`);
-                }
-            },
-            (err) => { 
-                setLocation(prev => ({ ...prev, status: 'error' })); 
-                showNotification("⚠️ No pudimos obtener tu ubicación.\n Haz tu pedido PICKUP\n Envianos tu ubicación ACTUAL por WhatsApp."); 
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-        );
-    };
-
     const handleCategoryClick = (catName) => {
         setActiveCategory(catName);
         if (categoriesRef.current) {
@@ -300,7 +114,7 @@ export default function Menu() {
                     <div className="absolute inset-0 bg-red-500 blur-2xl opacity-20 rounded-full"></div>
                     <img src={storeConfig.logo_url} className="w-40 h-40 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
                 </div>
-                <h1 className="text-3xl font-black text-white mb-4 tracking-widest uppercase">CERRADO</h1>
+                <h1 className="text-3xl font-black text-white mb-4 tracking-widest uppercase">CERRADO </h1>
                 <p className="text-gray-400 text-lg">{storeConfig.mensaje_cerrado}</p>
             </div>
         );
@@ -322,28 +136,28 @@ export default function Menu() {
                 <h1 className="text-3xl font-black text-metal-shine tracking-widest drop-shadow-sm mb-4">{storeConfig.nombre}</h1>
                 
                 <button onClick={handleShareMenu} className="inline-flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-500/40 text-blue-100 px-6 py-3 rounded-xl font-bold border border-blue-400/30 transition-colors shadow-sm mb-6 w-full max-w-xs">
-                    <Icons.ShareNode /> Compartir menú con amigos
+                    <Icons.ShareNode /> COMPARTIR MENÚ
                 </button>
 
                 <div className="bg-gray-900 p-1.5 rounded-full flex gap-1 border border-gray-700 shadow-inner w-full max-w-sm mb-5">
-                    <button onClick={() => setOrderType('delivery')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'delivery' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'delivery' ? deliveryColor : 'transparent' }}>🛵 Domicilio</button>
-                    <button onClick={() => setOrderType('pickup')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'pickup' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'pickup' ? pickupColor : 'transparent' }}>🛍️ Pickup</button>
+                    <button onClick={() => setOrderType('delivery')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'delivery' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'delivery' ? deliveryColor : 'transparent' }}>🛵 A DOMICILIO</button>
+                    <button onClick={() => setOrderType('pickup')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'pickup' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'pickup' ? pickupColor : 'transparent' }}>🛍️ PASAR A RECOGER</button>
                 </div>
 
                 {storeConfig.latitud && storeConfig.longitud && (
-                    <a href={`https://www.google.com/maps/search/?api=1&query=${storeConfig.latitud},${storeConfig.longitud}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold border border-white/20 transition-colors shadow-sm mb-5 w-full max-w-xs">
-                        <Icons.Map size={22} /> Ver nuestra ubicación
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${storeConfig.latitud},${storeConfig.longitud}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold border border-green/20 transition-colors shadow-sm mb-5 w-full max-w-xs">
+                        <Icons.Map size={22} /> VER NUESTRA UBICACIÓN
                     </a>
                 )}
 
                 {orderType === 'delivery' && (
                     <div className="bg-orange-500/20 border border-orange-500/50 text-orange-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
-                        <Icons.Clock size={20} className="text-orange-400"/> Tiempo de entrega: 45 a 60 min
+                        <Icons.Clock size={20} className="text-orange-400"/> TIEMPO DE ENTREGA: 45 - 60 MINUTOS
                     </div>
                 )}
                 {orderType === 'pickup' && (
                     <div className="bg-fuchsia-500/20 border border-fuchsia-500/50 text-fuchsia-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
-                        <Icons.Clock size={20} className="text-fuchsia-400"/> Pasa a recoger en mostrador
+                        <Icons.Clock size={20} className="text-fuchsia-400"/> Pasa a recoger tu pedido 
                     </div>
                 )}
             </header>
@@ -412,7 +226,7 @@ export default function Menu() {
                             </div>
 
                             <div className="bg-gray-50 p-6 border-t space-y-6">
-                                <h3 className="font-bold text-gray-600 text-base uppercase flex items-center gap-2"><Icons.Map size={24} /> Datos de Entrega</h3>
+                                <h3 className="font-bold text-gray-600 text-base uppercase flex items-center gap-2"><Icons.Map size={28} /> Datos de Entrega</h3>
                                 <input type="text" placeholder="Nombre Completo" value={customer.name} onChange={e=>setCustomer({...customer, name:e.target.value})} className="w-full p-4 bg-white border rounded-xl text-lg shadow-sm" />
                                 <input type="tel" placeholder="Número de Teléfono" value={customer.phone} onChange={e=>setCustomer({...customer, phone:e.target.value})} className="w-full p-4 bg-white border rounded-xl text-lg shadow-sm" />
                                 
@@ -431,8 +245,8 @@ export default function Menu() {
                                 
                                 {orderType === 'delivery' && (
                                     <div className="space-y-2">
-                                        <Button onClick={requestLocation} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
-                                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Fuera de Rango, Puedes pedir PICKUP`) : '📍 Clic para obtener ubicación de entrega (Ubicación actual) max 2km'}
+                                        <Button onClick={() => requestLocation(showNotification)} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
+                                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Tu ubicación está fuera de cobertura, pero puedes pedir PICKUP`) : '📍 Clic para obtener tu ubicación de entrega \n (Tu Ubicación Actual) \n Máximo 2km'}
                                         </Button>
                                     </div>
                                 )}
@@ -440,9 +254,9 @@ export default function Menu() {
                                 <div className="grid grid-cols-3 gap-4">
                                     {['efectivo', 'transferencia', 'tarjeta'].map(m => ( 
                                         <button key={m} onClick={() => setCustomer({...customer, paymentMethod: m})} className={`py-4 rounded-xl text-sm font-bold uppercase border flex flex-col items-center gap-2 ${customer.paymentMethod === m ? 'bg-gray-800 text-white' : 'bg-white text-gray-600'}`}>
-                                            {m === 'efectivo' && <Icons.Cash size={28} />} 
-                                            {m === 'transferencia' && <Icons.Phone size={28} />} 
-                                            {m === 'tarjeta' && <Icons.Card size={28} />} 
+                                            {m === 'efectivo' && <Icons.Cash size={30} />} 
+                                            {m === 'transferencia' && <Icons.Phone size={30} />} 
+                                            {m === 'tarjeta' && <Icons.Card size={30} />} 
                                             {m}
                                         </button> 
                                     ))}
@@ -485,6 +299,20 @@ export default function Menu() {
                         </div>
                     )}
                 </div>
+
+                <CartCheckout 
+                   cart={cart}
+                    updateQty={updateQty}
+                    clearCart={clearCart}
+                    showNotification={showNotification}
+                    setShowCart={setShowCart}
+                    storeConfig={storeConfig}
+                    orderType={orderType}
+                    categoriesDB={categoriesDB}
+                    setActiveCategory={setActiveCategory}
+                    pickupColor={pickupColor}
+                    deliveryColor={deliveryColor}
+                />
             </main>
             
             {cart.length > 0 && ( 
@@ -534,10 +362,10 @@ export default function Menu() {
                             <div className="animate-fade-in-down">
                                 <div className="text-6xl mb-4">✅</div>
                                 <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase">¡Pedido Generado!</h3>
-                                <p className="text-gray-600 mb-6">Te estamos redirigiendo a WhatsApp para confirmar...</p>
+                                <p className="text-gray-600 mb-6">Te estamos redirigiendo a WhatsApp para confirmar tu pedido...</p>
                                 <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-6">
                                     <p className="text-sm text-gray-700 font-bold mb-2">¿No se abrió WhatsApp automáticamente?</p>
-                                    <p className="text-xs text-gray-500 mb-4">(Suele pasar si abriste el menú desde Facebook o tu red es lenta)</p>
+                                    <p className="text-xs text-gray-500 mb-4">(Suele pasar si abriste el menú desde Facebook o la red es lenta)</p>
                                     <a href={whatsappFallbackUrl} target="_blank" onClick={closeWaitModal} className="block w-full py-4 rounded-xl bg-green-500 text-white font-bold shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all text-lg">💬 Enviar por WhatsApp</a>
                                 </div>
                                 <button onClick={closeWaitModal} className="text-gray-400 underline text-sm">Cerrar y Volver al Menú</button>

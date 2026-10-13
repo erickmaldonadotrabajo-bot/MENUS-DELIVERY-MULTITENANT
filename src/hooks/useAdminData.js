@@ -119,7 +119,7 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
             const allStats = products.map(p => ({ nombre: p.nombre, vendidos: productsCount[p.nombre] || 0 }));
             allStats.sort((a,b) => b.vendidos - a.vendidos);
 
-            // CORRECCIÓN: Filtramos los productos que no se han vendido (> 0) antes de calcular el Bottom 5
+            // Filtramos los productos que no se han vendido (> 0)
             const productosConVentas = allStats.filter(item => item.vendidos > 0);
 
             setStats({ 
