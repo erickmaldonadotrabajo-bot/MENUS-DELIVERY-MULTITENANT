@@ -55,10 +55,28 @@ export default function Admin() {
     const autoPrintRef = useRef(autoPrint);
 
     // Efectos Base
-    // Efectos Base (El del CSS que ya tenías)
     useEffect(() => {
         const style = document.createElement('style');
-        // ... (tu CSS actual)
+        style.innerHTML = `
+            body { font-family: 'Poppins', sans-serif; background-color: #111827; color: white; }
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            .animate-card { animation: fade-in-up 0.3s ease-out forwards; }
+            @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+            .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+            .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+            .loader { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #f97316; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto;}
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            
+            /* ESTO ES LO QUE HACE QUE EL TICKET FUNCIONE */
+            @media print {
+                @page { size: 58mm auto; margin: 0mm; }
+                body { margin: 0; padding: 0; background-color: white; }
+                body * { visibility: hidden; height: 0; overflow: hidden; }
+                #ticket-area { visibility: visible; position: absolute; left: 0 !important; top: 0 !important; width: 58mm !important; height: auto !important; overflow: visible !important; padding: 5px 10px 20px 5px; z-index: 9999; background-color: white !important; color: black !important; font-family: 'Courier New', Courier, monospace; line-height: 1.1; }
+                #ticket-area * { visibility: visible; height: auto; color: black !important; }
+            }
+        `;
         document.head.appendChild(style);
         return () => document.head.removeChild(style);
     }, []);
