@@ -14,7 +14,7 @@ export const useDeliveryZone = (storeConfig) => {
             return;
         }
 
-        if(!window.confirm(`📍 Clic para obtener ubicación de entrega\n\n Tu Ubicación actual\n\n ACEPTAR para continuar.`)) return;
+        if(!window.confirm(`📍 ACEPTAR para obtener tu ubicación para la entrega de tu pedido.`)) return;
         
         setLocation(prev => ({ ...prev, status: 'loading' }));
         

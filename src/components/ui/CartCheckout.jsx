@@ -1,23 +1,48 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Icons } from './Icons'; 
 import { Button } from './Button'; 
 import { useDeliveryZone } from '../../hooks/useDeliveryZone';
 import { useCheckout } from '../../hooks/useCheckout';
-import { useCart } from '../../hooks/useCart';
 
 export const CartCheckout = ({ 
     cart, updateQty, clearCart, showNotification, setShowCart,
     storeConfig, orderType, categoriesDB, setActiveCategory, pickupColor, deliveryColor 
 }) => {
-    // ESTADO LOCAL: Esto evita que el menú principal se re-renderice al teclear
-    const [customer, setCustomer] = useState({ 
-        name: '', phone: '', customAnswers: {}, paymentMethod: '', paymentAmount: '', instructions: '', tip: '' 
+    // INICIALIZACIÓN PEREZOSA DESDE LOCALSTORAGE (Solo Identidad)
+    const [customer, setCustomer] = useState(() => {
+        try {
+            const saved = localStorage.getItem('menu_cliente_identidad');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return { 
+                    name: parsed.name || '', 
+                    phone: parsed.phone || '', 
+                    customAnswers: {}, // Siempre inicia vacío
+                    paymentMethod: '', // Siempre inicia vacío
+                    paymentAmount: '', 
+                    instructions: '', 
+                    tip: '' 
+                };
+            }
+        } catch (e) {
+            console.warn("Fallo al leer caché de identidad");
+        }
+        return { name: '', phone: '', customAnswers: {}, paymentMethod: '', paymentAmount: '', instructions: '', tip: '' };
     });
 
-    // CONTROLADORES AISLADOS
+    // SINCRONIZACIÓN AUTOMÁTICA (Exclusiva para Nombre y Teléfono)
+    useEffect(() => {
+        if (customer.name || customer.phone) {
+            const cacheData = {
+                name: customer.name,
+                phone: customer.phone
+            };
+            localStorage.setItem('menu_cliente_identidad', JSON.stringify(cacheData));
+        }
+    }, [customer.name, customer.phone]);
+
     const { location, requestLocation } = useDeliveryZone(storeConfig, showNotification);
 
-    // CÁLCULO ESTRICTO DE TOTALES EN TIEMPO REAL
     const totals = useMemo(() => {
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const shipping = orderType === 'pickup' ? 0 : (location.allowed ? location.shippingCost : 0);
@@ -28,11 +53,10 @@ export const CartCheckout = ({
         return { subtotal, shipping, tip, cardFee, finalTotal };
     }, [cart, orderType, location, customer.tip, customer.paymentMethod, storeConfig.porcentaje_tarjeta]);
 
-    // MOTOR DE CHECKOUT INYECTADO AQUÍ
     const {
         isSubmitting, submitText, whatsappFallbackUrl,
-        showWaitModal, setShowWaitModal, closeWaitModal,
-        showDrinkUpsell, setShowDrinkUpsell, handleCheckout, confirmAndSend
+        showWaitModal, closeWaitModal, handleCheckout, confirmAndSend,
+        checkoutError 
     } = useCheckout({
         storeConfig, cart, customer, location, totals, orderType,
         clearCart, showNotification, categoriesDB, setActiveCategory, setShowCart
@@ -73,9 +97,8 @@ export const CartCheckout = ({
             <div className="bg-gray-50 p-6 border-t space-y-6">
                 <h3 className="font-bold text-gray-600 text-base uppercase flex items-center gap-2"><Icons.Map size={24} /> Datos de Entrega</h3>
                 
-                {/* AQUÍ ESTÁN LOS INPUTS AISLADOS */}
                 <input type="text" placeholder="Nombre Completo" value={customer.name} onChange={e=>setCustomer({...customer, name:e.target.value})} className="w-full p-4 bg-white border rounded-xl text-lg shadow-sm" />
-                <input type="tel" placeholder="Número de Teléfono" value={customer.phone} onChange={e=>setCustomer({...customer, phone:e.target.value})} className="w-full p-4 bg-white border rounded-xl text-lg shadow-sm" />
+                <input type="tel" placeholder="Número de Teléfono (10 dígitos)" value={customer.phone} onChange={e=>setCustomer({...customer, phone:e.target.value})} className="w-full p-4 bg-white border rounded-xl text-lg shadow-sm" />
                 
                 {storeConfig.checkout_options && storeConfig.checkout_options.map(field => (
                     <div key={field.id} className="space-y-2">
@@ -93,7 +116,7 @@ export const CartCheckout = ({
                 {orderType === 'delivery' && (
                     <div className="space-y-2">
                         <Button onClick={requestLocation} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
-                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Fuera de Rango`) : '📍 Calcular Tarifa de Envío'}
+                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Lo sentimos, no tenemos cobertura en tu zona.`) : 'Calcular distancia de tu ubicación actual para la entrega \n Máximo 2 km'}
                         </Button>
                     </div>
                 )}
@@ -109,11 +132,16 @@ export const CartCheckout = ({
                     ))}
                 </div>
                 
-                {/* LOGICA CONDICIONAL DE PAGOS (Oculta para brevedad, asumo que usas tu mismo código del panel de pagos) */}
                 {customer.paymentMethod === 'efectivo' && (
                     <div className="relative mt-4">
                         <span className="absolute left-4 top-4 text-green-600 font-bold text-lg">$</span>
                         <input type="number" placeholder="¿Con cuánto pagas?" value={customer.paymentAmount} onChange={e=>setCustomer({...customer, paymentAmount:e.target.value})} className="w-full p-4 pl-8 border-2 border-green-400 bg-white rounded-xl text-lg font-bold outline-none" />
+                    </div>
+                )}
+                {customer.paymentMethod === 'transferencia' && (
+                    <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 shadow-sm">
+                        <p className="font-bold mb-2 flex items-center gap-2">🏦 DATOS BANCARIOS:</p>
+                        <p className="font-mono whitespace-pre-wrap select-all text-sm">{storeConfig.datos_bancarios || 'Contacta al restaurante para obtener los datos de transferencia.'}</p>
                     </div>
                 )}
                 
@@ -125,25 +153,80 @@ export const CartCheckout = ({
                     <div className="flex justify-between font-black text-3xl pt-2 border-t border-orange-200"><span>TOTAL</span><span>${totals.finalTotal.toFixed(2)}</span></div>
                 </div>
                 
-                <Button onClick={handleCheckout} disabled={!storeConfig.abierto} className={`w-full py-5 text-xl shadow-xl ${storeConfig.abierto ? 'text-white' : 'bg-gray-400 opacity-60 cursor-not-allowed'}`} icon={storeConfig.abierto ? Icons.Send : Icons.Clock} style={storeConfig.abierto ? { background: orderType === 'pickup' ? pickupColor : deliveryColor } : {}}>
-                    {storeConfig.abierto ? 'ENVIAR PEDIDO' : 'TIENDA CERRADA'}
+                {/* ZONA DE ERRORES */}
+                {checkoutError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mt-6 mb-2 font-bold text-center text-sm shadow-sm">
+                        ⚠️ {checkoutError}
+                    </div>
+                )}
+
+                {/* BOTÓN CON LÓGICA DE BLOQUEO ESTRICTA */}
+                <Button 
+                    onClick={handleCheckout} 
+                    disabled={
+                        !storeConfig.abierto || 
+                        isSubmitting || 
+                        (orderType === 'delivery' && location.status === 'success' && !location.allowed)
+                    } 
+                    className={`w-full py-5 text-xl shadow-xl mt-2 ${
+                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && location.status === 'success' && !location.allowed) 
+                        ? 'text-white' 
+                        : 'bg-gray-400 opacity-60 cursor-not-allowed'
+                    }`} 
+                    icon={storeConfig.abierto ? Icons.Send : Icons.Clock} 
+                    style={
+                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && location.status === 'success' && !location.allowed) 
+                        ? { background: orderType === 'pickup' ? pickupColor : deliveryColor } 
+                        : {}
+                    }
+                >
+                    {isSubmitting 
+                        ? 'ENVIANDO...' 
+                        : !storeConfig.abierto 
+                            ? 'TIENDA CERRADA' 
+                            : (orderType === 'delivery' && location.status === 'success' && !location.allowed)
+                                ? 'FUERA DE ZONA'
+                                : 'ENVIAR PEDIDO'
+                    }
                 </Button>
             </div>
 
-            {/* MODALES TRASLADADOS AQUÍ PARA NO ENSUCIAR MENU.JSX */}
             {showWaitModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in-down">
                     <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}></div>
+                        
                         {whatsappFallbackUrl ? (
-                            <div>
-                                <h3 className="text-2xl font-black mb-2">¡Pedido Generado!</h3>
-                                <a href={whatsappFallbackUrl} target="_blank" onClick={closeWaitModal} className="block w-full py-4 rounded-xl bg-green-500 text-white font-bold">💬 Enviar por WhatsApp</a>
+                            <div className="animate-fade-in-down">
+                                <div className="text-6xl mb-4">✅</div>
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase">¡Pedido Generado!</h3>
+                                <p className="text-gray-600 mb-6">Te estamos redirigiendo a WhatsApp para confirmar tu pedido...</p>
+                                <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-6">
+                                    <p className="text-sm text-gray-700 font-bold mb-2">¿No se abrió WhatsApp automáticamente?</p>
+                                    <p className="text-xs text-gray-500 mb-4">(Suele pasar si abriste el menú desde Facebook o la red es lenta)</p>
+                                    <a href={whatsappFallbackUrl} target="_blank" onClick={closeWaitModal} className="block w-full py-4 rounded-xl bg-green-500 text-white font-bold shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all text-lg">💬 Enviar por WhatsApp</a>
+                                </div>
+                                <button onClick={closeWaitModal} className="text-gray-400 underline text-sm">Cerrar y Volver al Menú</button>
                             </div>
                         ) : (
-                            <div>
-                                <h3 className="text-xl font-black mb-4">CONFIRMA TU PEDIDO</h3>
-                                <button disabled={isSubmitting} onClick={confirmAndSend} className="w-full py-4 rounded-xl text-white font-bold bg-green-600">{submitText}</button>
-                            </div>
+                            <>
+                                <div className="mx-auto mb-6 relative">
+                                    <div className="absolute inset-0 blur-xl opacity-20 rounded-full" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}></div>
+                                    <img src={storeConfig.logo_url} className="w-32 h-32 rounded-full mx-auto shadow-xl border-4 border-white relative z-10 object-cover" />
+                                </div>
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight uppercase">¡YA CASI, SOLO CONFIRMA TU PEDIDO!</h3>
+                                <p className="text-gray-800 text-lg mb-8 leading-relaxed">
+                                    {orderType === 'delivery' ? (
+                                        <>🚨 ESTIMADO CLIENTE: 🕗 EL TIEMPO DE ESPERA es de 60 a 80 minutos 🚨<br/><br/><span className="text-sm font-bold text-gray-600 uppercase tracking-widest">¡Le agradecemos su PACIENCIA Y PREFERENCIA! 🙏</span></>
+                                    ) : (
+                                        <>🚨 ESTIMADO CLIENTE: NOSOTROS LE AVISAREMOS via WhatsApp cuando su pedido esté listo para recoger! 🚨<br/><br/><span className="text-sm font-bold text-gray-400 uppercase tracking-widest">¡Gracias por su PACIENCIA Y PREFERENCIA! 🙏</span></>
+                                    )}
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <button disabled={isSubmitting} onClick={closeWaitModal} className={`flex-1 py-4 rounded-xl border-2 font-bold transition-all ${isSubmitting ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}>Cancelar</button>
+                                    <button disabled={isSubmitting} onClick={confirmAndSend} className={`flex-1 py-4 rounded-xl text-white font-bold shadow-xl transition-all flex justify-center items-center gap-2 ${isSubmitting ? 'bg-gray-400 cursor-not-allowed shadow-none' : 'hover:scale-105 active:scale-95'}`} style={{ backgroundColor: isSubmitting ? undefined : (orderType === 'pickup' ? pickupColor : deliveryColor) }}>{submitText}</button>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

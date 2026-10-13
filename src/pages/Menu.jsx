@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 
 // Componentes y Utilidades Propias
 import { limpiarTexto, calculateDistance } from '../utils/helpers';
+import { useDeliveryZone } from '../hooks/useDeliveryZone';
 import { Icons } from '../components/ui/Icons';
 import { Button } from '../components/ui/Button';
 import { MediaModal } from '../components/ui/MediaModal';
@@ -15,7 +16,6 @@ import { ProductItem } from '../components/ui/ProductItem';
 import { useCart } from '../hooks/useCart';
 import { useStoreData } from '../hooks/useStoreData';
 import { useCheckout } from '../hooks/useCheckout';
-import { useDeliveryZone } from '../hooks/useDeliveryZone';
 
 // ==========================================
 // COMPONENTE PRINCIPAL
@@ -25,7 +25,7 @@ export default function Menu() {
     const parametroTienda = searchParams.get('tienda');
     const categoriesRef = useRef(null);
 
-    // 1. CARGA DE DATOS (Tenant) - Reemplaza los useState duplicados
+    // 1. CARGA DE DATOS (Tenant)
     const {
         storeConfig,
         categoriesDB,
@@ -38,11 +38,9 @@ export default function Menu() {
         processedMenu
     } = useStoreData(parametroTienda);
     
-    // 2. ESTADOS DEL CLIENTE Y PEDIDO (Deben existir antes de usar useCart)
+    // 2. ESTADOS DEL CLIENTE Y PEDIDO
     const [orderType, setOrderType] = useState('delivery');
     const [activeMedia, setActiveMedia] = useState(null); 
-    // Estados UI adicionales
-
     const [showCart, setShowCart] = useState(false);
 
     // 3. INICIALIZACIÓN DEL CARRITO
@@ -53,17 +51,14 @@ export default function Menu() {
         clearCart, showNotification
     } = useCart(storeConfig,orderType);
 
-// 4. MOTOR DE TRANSACCIONES (Checkout)
+    // 4. MOTOR DE TRANSACCIONES (Checkout)
     const {
         isSubmitting,
         submitText,
         whatsappFallbackUrl,
         showWaitModal,
-        setShowWaitModal, // Lo necesitamos para cerrar modales desde la UI
+        setShowWaitModal,
         closeWaitModal,
-        showDrinkUpsell,
-        setShowDrinkUpsell,
-        handleCheckout,
         confirmAndSend
     } = useCheckout({
         storeConfig, 
@@ -77,7 +72,7 @@ export default function Menu() {
         setActiveCategory, 
         setShowCart
     });
-    // 4. FUNCIÓN FALTANTE RESTAURADA
+
     const handleShareMenu = async () => {
         if (navigator.share) {
             try {
@@ -93,7 +88,6 @@ export default function Menu() {
         }
     };
 
-    const handleCustomAnswer = (fieldId, value) => { setCustomer(prev => ({ ...prev, customAnswers: { ...prev.customAnswers, [fieldId]: value } })); };
     const handleCategoryClick = (catName) => {
         setActiveCategory(catName);
         if (categoriesRef.current) {
@@ -112,7 +106,7 @@ export default function Menu() {
                 <DynamicStyles storeConfig={storeConfig} />
                 <div className="mb-10 relative">
                     <div className="absolute inset-0 bg-red-500 blur-2xl opacity-20 rounded-full"></div>
-                    <img src={storeConfig.logo_url} className="w-40 h-40 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
+                    <img src={storeConfig.logo_url} className="w-120 h-120 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
                 </div>
                 <h1 className="text-3xl font-black text-white mb-4 tracking-widest uppercase">CERRADO </h1>
                 <p className="text-gray-400 text-lg">{storeConfig.mensaje_cerrado}</p>
@@ -132,23 +126,13 @@ export default function Menu() {
             </div>
 
             <header className="bg-black/90 backdrop-blur-md shadow-2xl border-b-4 rounded-b-3xl mx-auto max-w-2xl px-4 py-8 text-center z-50 relative transition-colors duration-700 flex flex-col items-center" style={{ borderColor: orderType === 'pickup' ? pickupColor : deliveryColor }}>
-                <img src={storeConfig.logo_url} className="h-40 w-40 sm:h-48 sm:w-48 rounded-full logo-electric mb-4 relative z-10 object-cover" loading="eager" />
+                <img src={storeConfig.logo_url} className="h-80 w-80 sm:h-48 sm:w-48 rounded-full logo-electric mb-4 relative z-10 object-cover" loading="eager" />
                 <h1 className="text-3xl font-black text-metal-shine tracking-widest drop-shadow-sm mb-4">{storeConfig.nombre}</h1>
-                
-                <button onClick={handleShareMenu} className="inline-flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-500/40 text-blue-100 px-6 py-3 rounded-xl font-bold border border-blue-400/30 transition-colors shadow-sm mb-6 w-full max-w-xs">
-                    <Icons.ShareNode /> COMPARTIR MENÚ
-                </button>
 
                 <div className="bg-gray-900 p-1.5 rounded-full flex gap-1 border border-gray-700 shadow-inner w-full max-w-sm mb-5">
                     <button onClick={() => setOrderType('delivery')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'delivery' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'delivery' ? deliveryColor : 'transparent' }}>🛵 A DOMICILIO</button>
                     <button onClick={() => setOrderType('pickup')} className={`flex-1 py-2.5 rounded-full font-bold text-sm sm:text-base transition-all duration-300 ${orderType === 'pickup' ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white'}`} style={{ backgroundColor: orderType === 'pickup' ? pickupColor : 'transparent' }}>🛍️ PASAR A RECOGER</button>
                 </div>
-
-                {storeConfig.latitud && storeConfig.longitud && (
-                    <a href={`https://www.google.com/maps/search/?api=1&query=${storeConfig.latitud},${storeConfig.longitud}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold border border-green/20 transition-colors shadow-sm mb-5 w-full max-w-xs">
-                        <Icons.Map size={22} /> VER NUESTRA UBICACIÓN
-                    </a>
-                )}
 
                 {orderType === 'delivery' && (
                     <div className="bg-orange-500/20 border border-orange-500/50 text-orange-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
@@ -157,7 +141,7 @@ export default function Menu() {
                 )}
                 {orderType === 'pickup' && (
                     <div className="bg-fuchsia-500/20 border border-fuchsia-500/50 text-fuchsia-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
-                        <Icons.Clock size={20} className="text-fuchsia-400"/> Pasa a recoger tu pedido 
+                        <Icons.Clock size={20} className="text-fuchsia-400"/> ¡SIN FILA! PASA A RECOGER TU PEDIDO 
                     </div>
                 )}
             </header>
@@ -197,55 +181,40 @@ export default function Menu() {
                         </div>
                     </div>
                 ))}
-
-                <div id="cart" className={`transition-all duration-500 transform ${cart.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20 h-0 overflow-hidden'}`}>
-                    {cart.length > 0 && (
-                        <div className="mt-10 bg-white rounded-3xl shadow-2xl overflow-hidden border-t-4" style={{ borderColor: orderType === 'pickup' ? pickupColor : deliveryColor }}>
-                            <div className="bg-gray-900 p-6 flex items-center gap-3 text-white">
-                                <Icons.Cart size={32} style={{ color: orderType === 'pickup' ? pickupColor : deliveryColor }} />
-                                <h2 className="font-bold text-2xl">Tu Pedido</h2>
-                            </div>
-                            
-                            <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar space-y-4">
-                                {cart.map(item => ( 
-                                    <div key={item.key} className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                                        <div className="flex items-center gap-4">
-                                            <span className="bg-orange-100 text-orange-800 font-bold w-10 h-10 flex items-center justify-center rounded-lg text-lg">{item.qty}</span>
-                                            <div className="min-w-0 pr-2">
-                                                <p className="font-bold text-gray-900 text-lg leading-tight break-words">{item.nombre}</p>
-                                                <p className="text-sm text-gray-600 mt-1 break-words">{item.details}</p>
-                                                <p className="text-base text-gray-800 font-bold mt-1">${item.price} {item.isExtra && `(+${item.extraAppliedName})`}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-3 shrink-0">
-                                            <button onClick={() => updateQty(item.key, -1)} className="p-3 bg-white border rounded-lg text-gray-500 hover:text-red-500 active:bg-gray-100"><Icons.Minus size={20} /></button>
-                                            <button onClick={() => updateQty(item.key, 1)} className="p-3 text-white rounded-lg shadow-md active:scale-95 transition-all" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}><Icons.Plus size={20} /></button>
-                                        </div>
-                                    </div> 
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <CartCheckout 
-                   cart={cart}
-                    updateQty={updateQty}
-                    clearCart={clearCart}
-                    showNotification={showNotification}
-                    setShowCart={setShowCart}
-                    storeConfig={storeConfig}
-                    orderType={orderType}
-                    categoriesDB={categoriesDB}
-                    setActiveCategory={setActiveCategory}
-                    pickupColor={pickupColor}
-                    deliveryColor={deliveryColor}
-                />
             </main>
+
+            {/* MODAL DEL CARRITO DE CHECKOUT CON PERSISTENCIA DE ESTADO */}
+                <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6 transition-all duration-300 ${showCart ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                    <div className={`w-full max-w-2xl bg-gray-100 rounded-3xl shadow-2xl relative flex flex-col max-h-[90vh] transition-transform duration-300 ${showCart ? 'scale-100 translate-y-0' : 'scale-95 translate-y-10'}`}>
+                        
+                        <button 
+                            onClick={() => setShowCart(false)} 
+                            className="absolute -top-4 -right-2 sm:top-4 sm:right-4 z-[160] bg-white border border-gray-300 text-gray-800 p-2 px-4 rounded-full shadow-xl font-black hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all text-sm"
+                        >
+                            ✕ CERRAR
+                        </button>
+                        
+                        <div className="flex-1 overflow-y-auto custom-scrollbar rounded-3xl pb-6">
+                            <CartCheckout 
+                                cart={cart}
+                                updateQty={updateQty}
+                                clearCart={clearCart}
+                                showNotification={showNotification}
+                                setShowCart={setShowCart}
+                                storeConfig={storeConfig}
+                                orderType={orderType}
+                                categoriesDB={categoriesDB}
+                                setActiveCategory={setActiveCategory}
+                                pickupColor={pickupColor}
+                                deliveryColor={deliveryColor}
+                            />
+                        </div>
+                    </div>
+                </div>
             
             {cart.length > 0 && ( 
                 <div className="fixed bottom-6 w-full px-4 sm:px-6 left-1/2 transform -translate-x-1/2 z-50 max-w-4xl mx-auto flex justify-end pointer-events-none">
-                    <button onClick={() => { setShowCart(!showCart); if(!showCart) setTimeout(() => document.getElementById('cart')?.scrollIntoView({ behavior: 'smooth' }), 100); else { if(categoriesRef.current){ window.scrollTo({top: categoriesRef.current.offsetTop - 20, behavior: 'smooth'}) } else {window.scrollTo({ top: 0, behavior: 'smooth' });} } }} className="pointer-events-auto bg-gray-900/90 backdrop-blur-xl text-white pl-5 pr-6 py-4 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 flex items-center gap-4 border border-white/10 transition-all duration-300 group">
+                    <button onClick={() => setShowCart(true)} className="pointer-events-auto bg-gray-900/90 backdrop-blur-xl text-white pl-5 pr-6 py-4 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.5)] hover:scale-105 active:scale-95 flex items-center gap-4 border border-white/10 transition-all duration-300 group">
                         <div className="relative flex items-center">
                             <div className="p-2.5 rounded-full text-white group-hover:rotate-12 transition-transform shadow-[0_0_15px_rgba(var(--color-primary),0.6)]" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}><Icons.Cart size={24} /></div>
                             <span className={`absolute -top-3 -right-3 font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-lg transition-all duration-300 ${cartAnimate ? 'bg-yellow-400 text-black scale-125 rotate-12' : 'bg-red-600 text-white scale-100 rotate-0 text-xs'}`}>{cart.reduce((a,c) => a + c.qty, 0)}</span>
@@ -257,7 +226,7 @@ export default function Menu() {
                     </button> 
                 </div>
             )}
-            
+
             {notification && ( 
                 <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 backdrop-blur-md text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
                     <div className="bg-green-500 rounded-full p-2 animate-bounce">
@@ -265,63 +234,8 @@ export default function Menu() {
                     </div>
                     {notification}
                 </div> 
-            )}
+            )} 
 
-            {showDrinkUpsell && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in-down">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}></div>
-                        <div className="text-6xl mb-4">🥤</div>
-                        <p className="text-gray-600 text-lg mb-8 leading-relaxed">{storeConfig.upsell_config?.message}</p>
-                        <div className="flex flex-col gap-4">
-                            <button onClick={() => { setShowDrinkUpsell(false); setShowCart(false); handleCategoryClick(storeConfig.upsell_config?.targetCategoryName); }} className="w-full py-4 rounded-xl text-white font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all text-lg flex justify-center items-center gap-2" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}>{storeConfig.upsell_config?.buttonText}</button>
-                            <button onClick={() => { setShowDrinkUpsell(false); setShowWaitModal(true); }} className="w-full py-4 rounded-xl border-2 border-gray-200 text-gray-500 font-bold hover:bg-gray-50 active:scale-95 transition-all">Enviar mi pedido sin bebidas</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            {showWaitModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in-down">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}></div>
-                        
-                        {whatsappFallbackUrl ? (
-                            <div className="animate-fade-in-down">
-                                <div className="text-6xl mb-4">✅</div>
-                                <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase">¡Pedido Generado!</h3>
-                                <p className="text-gray-600 mb-6">Te estamos redirigiendo a WhatsApp para confirmar tu pedido...</p>
-                                <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-6">
-                                    <p className="text-sm text-gray-700 font-bold mb-2">¿No se abrió WhatsApp automáticamente?</p>
-                                    <p className="text-xs text-gray-500 mb-4">(Suele pasar si abriste el menú desde Facebook o la red es lenta)</p>
-                                    <a href={whatsappFallbackUrl} target="_blank" onClick={closeWaitModal} className="block w-full py-4 rounded-xl bg-green-500 text-white font-bold shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all text-lg">💬 Enviar por WhatsApp</a>
-                                </div>
-                                <button onClick={closeWaitModal} className="text-gray-400 underline text-sm">Cerrar y Volver al Menú</button>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="mx-auto mb-6 relative">
-                                    <div className="absolute inset-0 blur-xl opacity-20 rounded-full" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}></div>
-                                    <img src={storeConfig.logo_url} className="w-32 h-32 rounded-full mx-auto shadow-xl border-4 border-white relative z-10 object-cover" />
-                                </div>
-                                <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight uppercase">¡YA CASI, SOLO CONFIRMA TU PEDIDO POR WHATSAPP!</h3>
-                                <p className="text-gray-800 text-lg mb-8 leading-relaxed">
-                                    {orderType === 'delivery' ? (
-                                        <>🚨 ESTIMADO CLIENTE: 🕗 EL TIEMPO DE ESPERA es de 60 a 80 minutos 🚨<br/><br/><span className="text-sm font-bold text-gray-600 uppercase tracking-widest">¡Le agradecemos su PACIENCIA Y PREFERENCIA! 🙏</span></>
-                                    ) : (
-                                        <>🚨 ESTIMADO CLIENTE: NOSOTROS LE AVISAREMOS via WhatsApp cuando su pedido esté listo para recoger! 🚨<br/><br/><span className="text-sm font-bold text-gray-400 uppercase tracking-widest">¡Gracias por su PACIENCIA Y PREFERENCIA! 🙏</span></>
-                                    )}
-                                </p>
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <button disabled={isSubmitting} onClick={closeWaitModal} className={`flex-1 py-4 rounded-xl border-2 font-bold transition-all ${isSubmitting ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}>Cancelar</button>
-                                    <button disabled={isSubmitting} onClick={confirmAndSend} className={`flex-1 py-4 rounded-xl text-white font-bold shadow-xl transition-all flex justify-center items-center gap-2 ${isSubmitting ? 'bg-gray-400 cursor-not-allowed shadow-none' : 'hover:scale-105 active:scale-95'}`} style={{ backgroundColor: isSubmitting ? undefined : (orderType === 'pickup' ? pickupColor : deliveryColor) }}>{submitText}</button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-            
             <MediaModal media={activeMedia} onClose={() => setActiveMedia(null)} />
         </div>
     );
