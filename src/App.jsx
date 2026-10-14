@@ -9,7 +9,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 👈 ESTA ES LA CLAVE: Ruta raíz para que no cargue en blanco */}
         <Route path="/" element={<Home />} />
 
         {/* Rutas de las tiendas */}
@@ -20,7 +19,7 @@ function App() {
         {/* Panel de administración de cada cliente */}
         <Route path="/admin" element={<Admin />} />
         
-        {/* 🔒 RUTA SECRETA DEL PANEL MASTER (Super Admin) */}
+        {/* RUTA DEL PANEL MASTER (Super Admin) */}
         <Route path="/sistema-master-99" element={<SuperAdmin />} /> 
       </Routes>
     </BrowserRouter>

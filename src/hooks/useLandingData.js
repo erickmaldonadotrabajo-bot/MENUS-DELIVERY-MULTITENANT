@@ -8,6 +8,8 @@ export const useLandingData = () => {
     const [errorMsg, setErrorMsg] = useState(null);
 
     useEffect(() => {
+        let manifestUrl = null;
+
         const fetchTienda = async () => {
             try {
                 let data = null;
@@ -32,8 +34,11 @@ export const useLandingData = () => {
                     }
 
                     let query = supabase.from('tiendas').select('*');
-                    if (/^\d+$/.test(parametroTienda)) query = query.eq('id', parseInt(parametroTienda));
-                    else query = query.eq('slug', parametroTienda);
+                    if (/^\d+$/.test(parametroTienda)) {
+                        query = query.eq('id', parseInt(parametroTienda));
+                    } else {
+                        query = query.eq('slug', parametroTienda);
+                    }
 
                     const { data: resData, error } = await query.single();
                     if (error || !resData) throw new Error("La tienda solicitada no existe.");
@@ -62,9 +67,16 @@ export const useLandingData = () => {
                     };
                     
                     const manifestBlob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
+                    manifestUrl = URL.createObjectURL(manifestBlob);
+                    
+                    const existingManifest = document.querySelector('link[rel="manifest"]');
+                    if (existingManifest) {
+                        document.head.removeChild(existingManifest);
+                    }
+
                     const manifestLink = document.createElement('link');
                     manifestLink.rel = 'manifest';
-                    manifestLink.href = URL.createObjectURL(manifestBlob);
+                    manifestLink.href = manifestUrl;
                     document.head.appendChild(manifestLink);
                 }
 
@@ -77,6 +89,19 @@ export const useLandingData = () => {
         };
 
         fetchTienda();
+
+        // KILL SWITCH DE MEMORIA (Cleanup Function)
+        return () => {
+            if (manifestUrl) {
+                URL.revokeObjectURL(manifestUrl);
+            }
+            
+            const existingManifest = document.querySelector('link[rel="manifest"]');
+            if (existingManifest) {
+                document.head.removeChild(existingManifest);
+            }
+        };
+        
     }, []);
 
     return { tienda, loading, errorMsg, isPremiumDomain: isPremiumDomain() };

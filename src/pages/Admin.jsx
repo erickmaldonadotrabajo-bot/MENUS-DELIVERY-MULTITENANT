@@ -138,7 +138,7 @@ export default function Admin() {
     };
 
     const acknowledgeNewOrder = () => { 
-        detenerAlarma(); // <- El audio muere aquí inmediatamente
+        detenerAlarma(); 
         setHasNewOrder(false); 
     };
 
@@ -169,14 +169,36 @@ export default function Admin() {
     const handleCompleteOrder = async (id) => { 
         setOrders(prev => prev.filter(o => o.id !== id)); 
         await supabase.from('pedidos').update({ estado: 'despachado' }).eq('id', id); 
-        loadHistory();
     };
 
     const handleCancelOrder = async (id) => { 
-        setOrders(prev => prev.filter(o => o.id !== id)); 
-        await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id); 
-        showToast("Pedido Cancelado");
-        loadHistory();
+        const pinIngresado = window.prompt("⚠️ ACCIÓN RESTRINGIDA\nIngresa el PIN de administrador para cancelar este pedido:");
+        if (!pinIngresado) return;
+
+        try {
+            // Llamada segura a la función de Postgres. El frontend ya no hace el UPDATE directo.
+            const { data, error } = await supabase.rpc('cancelar_pedido_con_pin', {
+                p_pedido_id: id,
+                p_pin: pinIngresado
+            });
+
+            if (error) {
+                if (error.message.includes('PIN_INCORRECTO')) {
+                    showToast("❌ PIN INCORRECTO. Operación denegada.");
+                } else {
+                    showToast("❌ Error del servidor: " + error.message);
+                }
+                return;
+            }
+
+            // Solo si la base de datos devuelve éxito, limpiamos la UI
+            setOrders(prev => prev.filter(o => o.id !== id)); 
+            showToast("✅ Pedido Cancelado");
+
+        } catch (err) {
+            console.error("Error crítico en cancelación:", err);
+            showToast("Error de conexión al procesar la cancelación.");
+        }
     };
     const handlePrint = (order) => { setTicketOrder(order); setTimeout(() => window.print(), 500); };
 
@@ -195,7 +217,7 @@ export default function Admin() {
     const deleteProduct = async (item) => { 
         if(!confirm("¿ALERTA: Borrar producto de forma permanente?")) return; 
         
-        // Solo intentamos borrar de Supabase si la URL le pertenece
+        // Solo borra de Supabase si la URL le pertenece
         if (item.image_url && item.image_url.includes('supabase.co')) {
             try {
                 await supabase.storage.from('productos').remove([item.image_url.split('/').pop()]);

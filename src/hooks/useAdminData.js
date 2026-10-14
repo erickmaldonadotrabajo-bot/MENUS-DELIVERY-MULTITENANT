@@ -144,9 +144,18 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
                     setHasNewOrder(true);
                     window.dispatchEvent(new CustomEvent('newOrderReceived', { detail: payload.new }));
                 } else if (payload.eventType === 'UPDATE' && payload.new.estado !== 'pendiente') {
-                    setOrders(prev => prev.filter(o => o.id !== payload.new.id));
-                    loadHistory();
-                }
+    // 1. Lo quitamos de la fila de "pendientes"
+    setOrders(prev => prev.filter(o => o.id !== payload.new.id));
+    
+    setHistoryOrders(prev => {
+        // Evitamos duplicados por si acaso el payload llega doble
+        if (prev.some(o => o.id === payload.new.id)) {
+            return prev.map(o => o.id === payload.new.id ? payload.new : o);
+        }
+        // Insertamos el nuevo pedido al inicio y mantenemos un máximo de 50 elementos en RAM
+        return [payload.new, ...prev].slice(0, 50); 
+    });
+}
             }).subscribe();
             
         return () => { supabase.removeChannel(ordersChannel); };
