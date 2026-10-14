@@ -106,7 +106,7 @@ export default function Menu() {
                 <DynamicStyles storeConfig={storeConfig} />
                 <div className="mb-10 relative">
                     <div className="absolute inset-0 bg-red-500 blur-2xl opacity-20 rounded-full"></div>
-                    <img src={storeConfig.logo_url} className="w-120 h-120 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
+                    <img src={storeConfig.logo_url} className="w-80 h-80 sm:h-48 sm:w-48 rounded-full shadow-2xl logo-electric relative z-10 grayscale object-cover" />
                 </div>
                 <h1 className="text-3xl font-black text-white mb-4 tracking-widest uppercase">CERRADO </h1>
                 <p className="text-gray-400 text-lg">{storeConfig.mensaje_cerrado}</p>
@@ -177,7 +177,15 @@ export default function Menu() {
                             </div>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            {cat.items.map((item) => (<ProductItem key={item.id} item={item} category={cat} onAdd={addToCart} config={storeConfig} onShowMedia={setActiveMedia} />))}
+                            {cat.items.map((item) => (
+                        <ProductItem 
+                            key={item.id} 
+                            item={item} 
+                            onAdd={addToCart} 
+                            themeColor={storeConfig.color_primario} 
+                            onShowMedia={setActiveMedia} 
+                        />
+                ))}
                         </div>
                     </div>
                 ))}

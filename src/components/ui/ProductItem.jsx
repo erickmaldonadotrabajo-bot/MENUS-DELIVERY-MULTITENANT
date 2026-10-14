@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Icons } from './Icons';
 import { Button } from './Button';
 
-export const ProductItem = memo(({ item, category, onAdd, config, onShowMedia }) => {
+export const ProductItem = memo(({ item, onAdd, themeColor, onShowMedia }) => {
     const [conTodo, setConTodo] = useState(true);
     const [exclusions, setExclusions] = useState({});
     const [selectedExtras, setSelectedExtras] = useState([]); 
@@ -18,12 +18,6 @@ export const ProductItem = memo(({ item, category, onAdd, config, onShowMedia })
 
     const extrasTotal = selectedExtras.reduce((sum, ext) => sum + (parseFloat(ext.precio) || 0), 0);
     const currentPrice = parseFloat(item.precio) + extrasTotal;
-    
-    useEffect(() => { 
-        setConTodo(true); 
-        setExclusions({}); 
-        setSelectedExtras([]);
-    }, [item.nombre]);
     
     const toggleConTodo = useCallback(() => { 
         if (!conTodo) { setConTodo(true); setExclusions({}); } 
@@ -74,6 +68,8 @@ export const ProductItem = memo(({ item, category, onAdd, config, onShowMedia })
         setExclusions({});
     }, [exclusions, conTodo, availableToppings, onAdd, item, currentPrice, selectedExtras]);
 
+    console.log("Renderizando producto:", item.nombre);
+
     return (
         <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 p-5 flex flex-col animate-slide-up h-full ${!isAvailable ? 'opacity-60 bg-gray-100' : ''}`}>
             <div className="p-2 flex-grow">
@@ -106,13 +102,13 @@ export const ProductItem = memo(({ item, category, onAdd, config, onShowMedia })
                     <div className="mb-4 flex flex-col gap-2 pt-2 border-t border-gray-300">
                         <p className='text-sm text-black-500 mb-1 font-bold'>Personalizar:</p>
                         <label className="flex items-center gap-3 text-base font-bold text-gray-900 cursor-pointer select-none p-2 rounded bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
-                            <input type="checkbox" checked={conTodo} onChange={toggleConTodo} className="w-5 h-5 rounded" style={{accentColor: config.color_primario || '#f97316'}} />
+                            <input type="checkbox" checked={conTodo} onChange={toggleConTodo} className="w-5 h-5 rounded" style={{accentColor: themeColor || '#f97316'}} />
                             Con Todo
                         </label>
                         <div className="grid grid-cols-2 gap-2 mt-1">
                             {availableToppings.map(t => ( 
                                 <label key={t} className={`flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded border transition-colors ${exclusions[t] ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
-                                    <input type="checkbox" checked={exclusions[t] || false} onChange={() => toggleExclusion(t)} className="w-4 h-4 rounded" style={{accentColor: '#dc2626'}} />
+                                    <input type="checkbox" checked={exclusions[t] || false} onChange={() => toggleExclusion(t)} className="w-4 h-4 rounded" style={{accentColor: themeColor || '#dc2626'}} />
                                     Sin {t}
                                 </label> 
                             ))}

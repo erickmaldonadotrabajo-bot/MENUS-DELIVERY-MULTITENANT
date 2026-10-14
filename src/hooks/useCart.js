@@ -32,15 +32,17 @@ export const useCart = (storeConfig, customer = {}, orderType, location = {}) =>
     // 5. Handlers
     const addToCart = useCallback((product) => { 
         const key = `${product.nombre}-${product.price}-${product.details}-${product.isExtra}-${product.extraAppliedName}`; 
+        
         setCart(prev => { 
             const existingIndex = prev.findIndex(p => p.key === key); 
             if (existingIndex > -1) { 
-                const newCart = [...prev]; 
-                newCart[existingIndex].qty += 1; 
-                return newCart; 
+                return prev.map(p => 
+                    p.key === key ? { ...p, qty: p.qty + 1 } : p
+                );
             } 
             return [...prev, { ...product, qty: 1, key }]; 
         }); 
+
         showNotification(`¡${product.nombre}${product.isExtra ? ` (${product.extraAppliedName})` : ""} agregado!`); 
         setCartAnimate(true); 
         setTimeout(() => setCartAnimate(false), 300);

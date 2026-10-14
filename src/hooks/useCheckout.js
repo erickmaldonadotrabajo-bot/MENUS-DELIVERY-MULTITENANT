@@ -29,7 +29,7 @@ export const useCheckout = ({
             if (location.status === 'success' && !location.allowed) return setCheckoutError("Tu ubicación está fuera de nuestra zona de entrega.");
         }
         
-        const telefonoLimpio = customer.phone.replace(/[^0-9]/g, '');
+        const telefonoLimpio = customer.phone ? customer.phone.replace(/[^0-9]/g, '') : '';
         
         if (!customer.name || !telefonoLimpio || !customer.paymentMethod || cart.length === 0) return setCheckoutError("Faltan datos obligatorios (Nombre, Teléfono o Método de Pago).");
         if (telefonoLimpio.length !== 10) return setCheckoutError("El número de teléfono debe ser exactamente de 10 dígitos.");
@@ -45,8 +45,18 @@ export const useCheckout = ({
 
     const confirmAndSend = async () => {
         if (isSubmitting) return; 
+        
+        // 1. RATE LIMITING FRONTAL (Protección contra Spam y Doble Clic)
+        const ultimoPedido = localStorage.getItem('last_order_time');
+        if (ultimoPedido && (Date.now() - parseInt(ultimoPedido)) < 60000) { 
+            setCheckoutError("Por favor, espera un minuto antes de enviar otro pedido.");
+            setShowWaitModal(false);
+            return;
+        }
+
         setIsSubmitting(true);
         setSubmitText("Generando pedido...");
+        setCheckoutError(null);
 
         const shippingSeguro = orderType === 'pickup' ? 0 : (location.allowed ? location.shippingCost : 0);
         const tipSeguro = parseFloat(customer.tip) || 0;
@@ -68,12 +78,12 @@ export const useCheckout = ({
             });
         }
 
-        msg += `--------------------------------\n`;
+        msg += `---------------------\n`;
         cart.forEach(item => { 
             const detallesSeguros = item.details ? ` ${limpiarTexto(item.details, 100)}` : '';
             const extraSeguro = item.isExtra ? ` (${limpiarTexto(item.extraAppliedName, 50)})` : '';
             
-            msg += `✅ *${item.qty}x * *${limpiarTexto(item.nombre, 100)}*${extraSeguro}${detallesSeguros} $${(item.price * item.qty).toFixed(2)}\n`; 
+            msg += `✅ *${item.qty}x* *${limpiarTexto(item.nombre, 100)}*${extraSeguro}${detallesSeguros} $${(item.price * item.qty).toFixed(2)}\n`; 
         });
 
         if (customer.instructions) {
@@ -84,9 +94,9 @@ export const useCheckout = ({
 
         if (orderType === 'delivery') {
             const zoneSafe = location.zoneName ? ` (${limpiarTexto(location.zoneName, 50)})` : '';
-            msg += `🛵 Envío: $${shippingSeguro.toFixed(2)}${zoneSafe}\n`;
+            msg += `🛵 Envío: $${shippingSeguro.toFixed(2)}${zoneSafe}\n\n`;
         } else {
-            msg += `🛍️ Pickup: Sin costo de envío\n`;
+            msg += `🛍️ Pickup: Sin costo de envío\n\n`;
         }
 
         if (tipSeguro > 0) msg += `💸 Propina: *$${tipSeguro.toFixed(2)}*\n\n`;
@@ -131,12 +141,10 @@ export const useCheckout = ({
                     });
                 }
 
-                const telefonoSeguro = customer.phone ? customer.phone.replace(/\D/g, '').substring(0, 15) : null;
-
                 const payloadSeguro = { 
                     tienda_id: storeConfig.id, 
                     cliente_nombre: limpiarTexto(customer.name, 50), 
-                    cliente_telefono: telefonoSeguro, 
+                    cliente_telefono: safePhone, 
                     tipo_entrega: orderType,
                     metodo_pago: limpiarTexto(customer.paymentMethod, 30), 
                     pago_con: customer.paymentMethod === 'efectivo' ? parseFloat(customer.paymentAmount) : null,
@@ -153,22 +161,50 @@ export const useCheckout = ({
                     estado: 'pendiente'
                 };
 
+                // 2. INSERCIÓN CON PROTECCIÓN DE TIMEOUT Y MANEJO DE ERRORES ESTRICTO
                 const insertPromise = supabase.from('pedidos').insert([payloadSeguro]);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_DB')), 4000));
                 
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000));
-                await Promise.race([insertPromise, timeoutPromise]);
+                const response = await Promise.race([insertPromise, timeoutPromise]);
+                
+                if (response && response.error) {
+                    throw new Error(response.error.message);
+                }
+
+                // Si llegamos aquí, fue exitoso. Guardamos el timestamp.
+                localStorage.setItem('last_order_time', Date.now().toString());
+
             } catch(err) {
-                console.warn("⚠️ Falló guardado DB", err);
+                console.error("⚠️ Falló guardado DB crítico:", err);
+                
+                // 3. PROPAGACIÓN DEL ERROR A LA UI
+                setCheckoutError(
+                    err.message === 'TIMEOUT_DB' 
+                    ? "Tu conexión es inestable. No pudimos enviar el pedido a la cocina. Intenta de nuevo." 
+                    : "Error al enviar el pedido. Por favor intenta de nuevo."
+                );
+                
+                setIsSubmitting(false);
+                setSubmitText("Confirmar Orden");
+                
+                // Cerramos la ventana emergente si se abrió en Desktop para evitar ventanas huérfanas
+                if (preOpenedWindow) preOpenedWindow.close();
+                
+                return; // Detiene la ejecución aquí. NO borra el carrito ni redirige a WhatsApp.
             }
         }
 
+        // 4. FLUJO DE ÉXITO (Solo llega aquí si el try/catch no lanzó error, o si no usa panel admin)
         clearCart(); 
         setShowCart(false);
         setWhatsappFallbackUrl(whatsappUrl); 
         setSubmitText("Redirigiendo..."); 
 
-        if (!isMobile && preOpenedWindow) preOpenedWindow.location.href = whatsappUrl;
-        else window.location.href = whatsappUrl;
+        if (!isMobile && preOpenedWindow) {
+            preOpenedWindow.location.href = whatsappUrl;
+        } else {
+            window.location.href = whatsappUrl;
+        }
     };
 
     return {
