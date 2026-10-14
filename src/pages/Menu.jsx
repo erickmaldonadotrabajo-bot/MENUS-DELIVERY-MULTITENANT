@@ -141,7 +141,7 @@ export default function Menu() {
                 )}
                 {orderType === 'pickup' && (
                     <div className="bg-fuchsia-500/20 border border-fuchsia-500/50 text-fuchsia-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
-                        <Icons.Clock size={20} className="text-fuchsia-400"/> ¡NO HAGAS FILA! PASA A RECOGER TU PEDIDO 
+                        <Icons.Clock size={20} className="text-fuchsia-400"/> ¡SIN FILA! PASA A RECOGER TU PEDIDO 
                     </div>
                 )}
             </header>

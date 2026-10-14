@@ -78,12 +78,12 @@ export const useCheckout = ({
             });
         }
 
-        msg += `---------------------\n`;
+        msg += `--------------------\n`;
         cart.forEach(item => { 
             const detallesSeguros = item.details ? ` ${limpiarTexto(item.details, 100)}` : '';
             const extraSeguro = item.isExtra ? ` (${limpiarTexto(item.extraAppliedName, 50)})` : '';
             
-            msg += `✅ *${item.qty}x* *${limpiarTexto(item.nombre, 100)}*${extraSeguro}${detallesSeguros} $${(item.price * item.qty).toFixed(2)}\n`; 
+            msg += `✅ *${item.qty}x* *${limpiarTexto(item.nombre, 100)}*${extraSeguro}${detallesSeguros} $${(item.price * item.qty).toFixed(2)}\n\n`; 
         });
 
         if (customer.instructions) {
