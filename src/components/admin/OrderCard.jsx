@@ -15,14 +15,12 @@ export const OrderCard = ({ order, tienda, onComplete, onPrint, onCancel }) => {
     
     const date = formatTime(order.created_at);
 
-    // BLINDAJE 2: Cálculos financieros seguros
+    // Cálculos financieros seguros
     const safeTotal = !isNaN(parseFloat(order.total_final)) ? parseFloat(order.total_final).toFixed(2) : '0.00';
     const esEfectivo = String(order.metodo_pago || '').toLowerCase().includes('efectivo');
     const safeCambio = (esEfectivo && !isNaN(parseFloat(order.pago_con)) && !isNaN(parseFloat(order.total_final))) 
         ? (parseFloat(order.pago_con) - parseFloat(order.total_final)).toFixed(2) 
         : null;
-
-    // TODO: A futuro, migrar window.confirm a un Modal UI para no bloquear el Main Thread
     const handleComplete = () => { if(window.confirm("¿CONFIRMAS QUE EL PEDIDO ESTÁ LISTO/DESPACHADO?")) onComplete(order.id); };
     const handleCancelClick = () => { if(window.confirm("¿ALERTA: Seguro que quieres CANCELAR este pedido?")) onCancel(order.id); };
 

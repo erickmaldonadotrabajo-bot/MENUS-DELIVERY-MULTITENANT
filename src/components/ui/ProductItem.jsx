@@ -1,4 +1,3 @@
-// src/components/ui/ProductItem.jsx
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Icons } from './Icons';
 import { Button } from './Button';

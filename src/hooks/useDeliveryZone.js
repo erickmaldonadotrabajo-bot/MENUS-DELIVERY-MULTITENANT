@@ -1,9 +1,8 @@
 // src/hooks/useDeliveryZone.js
 import { useState, useCallback } from 'react';
-import { calculateDistance } from '../utils/helpers'; // o geoHelpers.js
+import { calculateDistance } from '../utils/helpers';
 
 export const useDeliveryZone = (storeConfig) => {
-    // El estado de ubicación que tenías suelto en Menu.jsx ahora vive aquí
     const [location, setLocation] = useState({ 
         lat: null, lng: null, status: 'idle', shippingCost: 0, zoneName: '', distance: 0, allowed: false 
     });

@@ -65,7 +65,7 @@ export const useCart = (storeConfig, customer = {}, orderType, location = {}) =>
         return { subtotal, tip, cardFee, shipping, finalTotal: baseTotal + cardFee }; 
     }, [cart, customer?.tip, customer?.paymentMethod, orderType, location?.allowed, location?.shippingCost, storeConfig?.porcentaje_tarjeta]);
 
-    // Retornamos todo lo que el componente Menu va a necesitar
+    // lo que el componente Menu va a necesitar
     return {
         cart,
         cartAnimate,

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
 export default function SuperAdmin() {
-    // 🔐 Auth real con Supabase (reemplaza la contraseña maestra hardcodeada)
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
     const [email, setEmail] = useState('');
@@ -206,7 +205,7 @@ Aquí está el menú a procesar:
         return <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">Verificando sesión...</div>;
     }
 
-    // 🔐 PANTALLA LOGIN (email + contraseña real de Supabase Auth)
+    // PANTALLA LOGIN (email + contraseña real de Supabase Auth)
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">

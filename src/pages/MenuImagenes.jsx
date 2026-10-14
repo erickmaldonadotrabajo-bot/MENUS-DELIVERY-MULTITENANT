@@ -8,7 +8,6 @@ export default function MenuImagenes() {
 
     useEffect(() => {
         if (tienda && tienda.menu_imagenes_url) {
-            // Convierte el string separado por comas en un array de URLs, tal como lo tenías en tu HTML original
             const urlsArray = tienda.menu_imagenes_url
                 .split(',')
                 .map(url => url.trim())
@@ -47,7 +46,7 @@ export default function MenuImagenes() {
             className="min-h-screen pb-10 text-white animate-fade-in relative"
             style={{ backgroundColor: tienda.color_fondo || '#111827' }}
         >
-            {/* ELEMENTO BLOQUE CABECERA (Fijación magnética / Sticky) */}
+            {/* ELEMENTO BLOQUE CABECERA */}
             <div 
                 className="sticky top-0 backdrop-blur-xl p-4 text-center z-50 border-b border-gray-800 shadow-lg" 
                 style={{ backgroundColor: `${tienda.color_fondo || '#111827'}CC` }}

@@ -8,7 +8,7 @@ export const CartCheckout = ({
     cart, updateQty, clearCart, showNotification, setShowCart,
     storeConfig, orderType, categoriesDB, setActiveCategory, pickupColor, deliveryColor 
 }) => {
-    // INICIALIZACIÓN PEREZOSA DESDE LOCALSTORAGE (Solo Identidad)
+    // INICIALIZACIÓN LOCALSTORAGE (Solo Identidad)
     const [customer, setCustomer] = useState(() => {
         try {
             const saved = localStorage.getItem('menu_cliente_identidad');
@@ -17,8 +17,8 @@ export const CartCheckout = ({
                 return { 
                     name: parsed.name || '', 
                     phone: parsed.phone || '', 
-                    customAnswers: {}, // Siempre inicia vacío
-                    paymentMethod: '', // Siempre inicia vacío
+                    customAnswers: {}, 
+                    paymentMethod: '', 
                     paymentAmount: '', 
                     instructions: '', 
                     tip: '' 
@@ -116,7 +116,7 @@ export const CartCheckout = ({
                 {orderType === 'delivery' && (
                     <div className="space-y-2">
                         <Button onClick={requestLocation} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
-                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Lo sentimos, no tenemos cobertura en tu zona.`) : 'Calcular distancia de tu ubicación actual para la entrega \n Máximo 2 km'}
+                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Lo sentimos, no tenemos cobertura en tu zona.`) : 'Calcular distancia de tu ubicación actual para la entrega'}
                         </Button>
                     </div>
                 )}

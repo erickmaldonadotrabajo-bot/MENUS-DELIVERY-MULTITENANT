@@ -30,13 +30,13 @@ export const Ticket = ({ order, tienda }) => {
                     <p style={{fontSize:'18px', margin:0}}>{limpiarTexto(order.nota_cliente, 200)}</p>
                 </div>
             )}
-            <div style={{width: '100%', fontSize: '18px'}}>
+            <div style={{width: '100%', fontSize: '20px'}}>
                 {order.detalle_json && order.detalle_json.map((item, i) => (
                     <div key={i} style={{marginBottom: '5px', display: 'flex', alignItems: 'flex-start'}}>
                         <div style={{flex: '1', paddingRight: '5px'}}>
                             <span style={{fontWeight:'bold'}}>-{item.qty} {limpiarTexto(item.nombre, 80)}</span>
-                            {item.isExtra && <div style={{fontSize: '16px', fontWeight: 'bold'}}>+ {limpiarTexto(item.extraAppliedName, 100)}</div>}
-                            {item.details && <div style={{fontSize: '16px', fontStyle: 'italic'}}>{limpiarTexto(item.details, 100)}</div>}
+                            {item.isExtra && <div style={{fontSize: '18px', fontWeight: 'bold'}}>+ {limpiarTexto(item.extraAppliedName, 100)}</div>}
+                            {item.details && <div style={{fontSize: '18px', fontStyle: 'italic'}}>{limpiarTexto(item.details, 100)}</div>}
                         </div>
                         <div style={{width: '50px', textAlign: 'right', fontWeight: 'bold'}}>${(item.price * item.qty).toFixed(0)}</div>
                     </div>

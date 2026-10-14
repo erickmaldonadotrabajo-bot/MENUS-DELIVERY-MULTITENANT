@@ -71,7 +71,7 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
         }
     };
 
-    // NUEVA FUNCIÓN DIRECTA A CLOUDINARY
+    // FUNCIÓN DIRECTA A CLOUDINARY
     const handleMediaUpload = async (e, field) => {
         let file = e.target.files[0];
         if (!file) return;
@@ -79,8 +79,7 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
         if (file.size > 10 * 1024 * 1024) return alert("⚠️ Imagen demasiado pesada (Máx 10MB).");
         if (!file.type.startsWith('image/')) return alert("⚠️ Selecciona una IMAGEN válida.");
 
-        // Lógica de límite de fotos (mantenemos tu validación de 25 o 50)
-        // Ajustado a 50 como mencionaste en tu estrategia de negocio.
+        // Lógica de límite de fotos (validación de 25 o 50).
         const MAX_PHOTOS = tienda?.tiene_panel_admin ? 50 : 25; 
         const currentPhotoCount = products.filter(p => p.image_url).length;
         
@@ -99,7 +98,7 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
             // Opcional: Agregar un tag para buscar más fácil en el dashboard de Cloudinary
             formData.append('tags', `tienda_${tienda?.id || 'desconocida'}`);
 
-            // 2. Disparamos directo a la API de Cloudinary (Reemplaza CLOUD_NAME por b44n7b69)
+            // 2. Disparamos API de Cloudinary
             const CLOUD_NAME = 'b44n7b69'; 
             const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 
@@ -115,7 +114,7 @@ export const AdminModal = ({isOpen, onClose, type, editItem, categories, product
 
             const data = await response.json();
             
-            // 3. Cloudinary nhos devuelve la 'secure_url' optimizada. La guardamos en el estado.
+            // Cloudinary devuelve la 'secure_url' optimizada.
             setForm(prev => ({ ...prev, [field]: data.secure_url }));
 
         } catch (error) {

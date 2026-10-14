@@ -1,6 +1,6 @@
 import React from 'react';
-import { createPortal } from 'react-dom'; // ESTA ES LA LÍNEA QUE RESUELVE EL CRASHEO
-import { Icons } from './Icons'; // Asegúrate de que esta ruta apunte correctamente a tu archivo de Iconos
+import { createPortal } from 'react-dom'; 
+import { Icons } from './Icons'; 
 
 export const MediaModal = ({ media, onClose }) => {
     if (!media || !media.url) return null;

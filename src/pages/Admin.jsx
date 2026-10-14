@@ -81,7 +81,7 @@ export default function Admin() {
         return () => document.head.removeChild(style);
     }, []);
 
-    // >>> PEGA AQUÍ EL NUEVO EFECTO DEL ENGRANE <<<
+    // EFECTO DEL ENGRANE
     useEffect(() => {
         document.title = "Panel de Control - Admin";
         const gearIcon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>";
@@ -107,9 +107,6 @@ export default function Admin() {
             document.title = "Menú Digital";
         };
     }, []);
-    // >>> FIN DEL NUEVO EFECTO <<<
-
-    useEffect(() => { if (tienda) setConfigForm(tienda); }, [tienda]);
 
     useEffect(() => { if (tienda) setConfigForm(tienda); }, [tienda]);
 
@@ -131,7 +128,19 @@ export default function Admin() {
     }, []);
 
     const showToast = useCallback((msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 3000); }, []);
-    const acknowledgeNewOrder = () => { setHasNewOrder(false); alertSound.pause(); alertSound.currentTime = 0; };
+    
+    // KILL SWITCH INYECTADO
+    const detenerAlarma = () => {
+        if (alertSound) {
+            alertSound.pause();
+            alertSound.currentTime = 0;
+        }
+    };
+
+    const acknowledgeNewOrder = () => { 
+        detenerAlarma(); // <- El audio muere aquí inmediatamente
+        setHasNewOrder(false); 
+    };
 
     // Acciones de Login y Configuración
     const handleLoginSubmit = async (e) => {

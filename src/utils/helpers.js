@@ -3,8 +3,8 @@ import React, { memo } from 'react';
 export const limpiarTexto = (texto, maxLength = 200) => {
     if (!texto) return "";
     return String(texto)
-        .replace(/[<>]/g, '') // Blindaje XSS: Elimina < y > físicamente
-        .substring(0, maxLength) // Blindaje DB: Previene inyección masiva de texto
+        .replace(/[<>]/g, '') 
+        .substring(0, maxLength)
         .trim();
 };
 

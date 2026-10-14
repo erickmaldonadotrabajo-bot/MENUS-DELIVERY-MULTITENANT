@@ -11,7 +11,6 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
     
     const [loadingData, setLoadingData] = useState(true);
     const [hasNewOrder, setHasNewOrder] = useState(false);
-    // Cambiamos el valor inicial para que coincida con la nueva estructura
     const [metricsDateFilter, setMetricsDateFilter] = useState('mes_actual');
 
     const fetchTiendaData = useCallback(async () => {
@@ -47,7 +46,7 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
         if(data) setHistoryOrders(data);
     }, [tiendaId]);
 
-    // LÓGICA DE FILTRADO DE FECHAS MEJORADA (Cuartos Mensuales)
+    // FILTRADO DE FECHAS (Cuartos Mensuales)
     const loadStats = useCallback(async () => {
         if (!tiendaId || !products.length) return;
         try {
@@ -115,11 +114,11 @@ export const useAdminData = (tiendaId, isAuthenticated) => {
                 }
             });
 
-            // Agrupamos TODOS los productos y ordenamos por ventas
+            // Agrupamos y ordenamos por ventas
             const allStats = products.map(p => ({ nombre: p.nombre, vendidos: productsCount[p.nombre] || 0 }));
             allStats.sort((a,b) => b.vendidos - a.vendidos);
 
-            // Filtramos los productos que no se han vendido (> 0)
+            // Filtramos los productos que no se han vendido
             const productosConVentas = allStats.filter(item => item.vendidos > 0);
 
             setStats({ 

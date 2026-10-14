@@ -80,7 +80,7 @@ export default function Home() {
               { src: data.logo_url, sizes: "192x192", type: "image/png" },
               { src: data.logo_url, sizes: "512x512", type: "image/png", purpose: "any maskable" }
             ]
-          }; // <-- AQUÍ ESTÁ LA LLAVE DE CIERRE QUE FALTABA
+          }; 
           
           const manifestBlob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
           const manifestLink = document.createElement('link');
@@ -143,7 +143,6 @@ export default function Home() {
           url: shareUrl
         });
       } catch (error) {
-        // El usuario canceló o cerró la ventana de compartir, ignoramos el error
         if (error.name !== 'AbortError') {
             console.error("Error al compartir:", error);
         }
