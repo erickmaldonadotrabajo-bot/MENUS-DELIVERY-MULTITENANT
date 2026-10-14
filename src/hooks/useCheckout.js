@@ -67,7 +67,7 @@ export const useCheckout = ({
         const title = orderType === 'pickup' ? "PEDIDO PICKUP" : "PEDIDO A DOMICILIO";
         const safePhone = customer.phone ? customer.phone.replace(/\D/g, '').substring(0, 15) : "N/D";
 
-        let msg = `🔥 *${title}*\n\n👤 *Cliente:* ${limpiarTexto(customer.name, 50)}\n📱 *Tel:* ${safePhone}\n`;
+        let msg = `🔥 *${title}*\n\n👤 *Cliente:* ${limpiarTexto(customer.name, 50)}\n\n📱 *Tel:* ${safePhone}\n\n`;
 
         if (customer.customAnswers) {
             Object.keys(customer.customAnswers).forEach(key => {
@@ -78,7 +78,7 @@ export const useCheckout = ({
             });
         }
 
-        msg += `--------------------\n`;
+        msg += `--------------------\n\n`;
         cart.forEach(item => { 
             const detallesSeguros = item.details ? ` ${limpiarTexto(item.details, 100)}` : '';
             const extraSeguro = item.isExtra ? ` (${limpiarTexto(item.extraAppliedName, 50)})` : '';
