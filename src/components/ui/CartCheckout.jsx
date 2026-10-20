@@ -90,7 +90,7 @@ export const CartCheckout = ({
                                 (${item.price} c/u)
                             </span>
                         )}
-                        {item.isExtra && ` (+${item.extraAppliedName})`}
+                        {item.isExtra && ` (${item.extraAppliedName})`}
                     </p>
 
                 </div>
