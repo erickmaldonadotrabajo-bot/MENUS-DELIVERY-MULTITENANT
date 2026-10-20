@@ -19,22 +19,20 @@ const PageLoader = () => (
 function App() {
   return (
     <BrowserRouter>
-      {/* 3. SUSPENSE: Detiene el renderizado hasta que el chunk JS se haya descargado */}
+      {/*SUSPENSE: Detiene el renderizado hasta que el chunk JS se haya descargado */}
       <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
 
-          {/* Rutas de las tiendas */}
+        <Routes>
+
+          <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />
           <Route path="/menu" element={<Menu />} />
           <Route path="/menu-imagenes" element={<MenuImagenes />} />
-          
-          {/* Panel de administración de cada cliente */}
           <Route path="/admin" element={<Admin />} />
-          
-          {/* RUTA DEL PANEL MASTER (Super Admin) */}
           <Route path="/sistema-master-99" element={<SuperAdmin />} /> 
+        
         </Routes>
+
       </Suspense>
     </BrowserRouter>
   );

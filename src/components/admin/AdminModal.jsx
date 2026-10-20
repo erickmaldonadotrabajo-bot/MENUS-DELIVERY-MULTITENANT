@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { AdminIcons } from './AdminIcons';
-import { limpiarTexto } from '../../utils/adminHelpers';
+import { limpiarTexto } from '../../utils/helpers';
 
 export const AdminModal = ({isOpen, onClose, type, editItem, categories, products, tienda, onSave}) => {
     const [form, setForm] = useState({});

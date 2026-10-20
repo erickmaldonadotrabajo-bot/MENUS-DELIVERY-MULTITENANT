@@ -1,21 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '../supabase';
 
 // Componentes y Utilidades Propias
-import { limpiarTexto, calculateDistance } from '../utils/helpers';
-import { useDeliveryZone } from '../hooks/useDeliveryZone';
-import { Icons } from '../components/ui/Icons';
-import { Button } from '../components/ui/Button';
-import { MediaModal } from '../components/ui/MediaModal';
-import { DynamicStyles } from '../components/ui/DynamicStyles';
 import { CartCheckout } from '../components/ui/CartCheckout';
+import { DynamicStyles } from '../components/ui/DynamicStyles';
+import { Icons } from '../components/ui/Icons';
+import { MediaModal } from '../components/ui/MediaModal';
 import { ProductItem } from '../components/ui/ProductItem';
 
 // hooks
 import { useCart } from '../hooks/useCart';
-import { useStoreData } from '../hooks/useStoreData';
 import { useCheckout } from '../hooks/useCheckout';
+import { useStoreData } from '../hooks/useStoreData';
 
 // ==========================================
 // COMPONENTE PRINCIPAL
@@ -73,21 +69,6 @@ export default function Menu() {
         setShowCart
     });
 
-    const handleShareMenu = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `MENU DIGITAL DE ${storeConfig?.nombre || ''}`,
-                    text: `¡Mira el menú de ${storeConfig?.nombre || ''} y pidamos algo buenísimo! 🔥`,
-                    url: window.location.href
-                });
-            } catch (err) { console.log('Error compartiendo:', err); }
-        } else {
-            navigator.clipboard.writeText(window.location.href);
-            showNotification("¡Enlace copiado al portapapeles!");
-        }
-    };
-
     const handleCategoryClick = (catName) => {
         setActiveCategory(catName);
         if (categoriesRef.current) {
@@ -97,8 +78,21 @@ export default function Menu() {
     };
 
     // Vistas de Estado
-    if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900"><DynamicStyles storeConfig={storeConfig} /><div className="loader mb-4"></div><p className="text-gray-400">Cargando restaurante...</p></div>;
-    if (errorMsg || !storeConfig) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><DynamicStyles storeConfig={storeConfig} /><div className="bg-red-900/40 border border-red-500 p-6 rounded-2xl max-w-sm w-full text-center"><div className="text-5xl mb-4">🚫</div><h2 className="text-2xl font-black mb-2 text-white uppercase">Error</h2><p className="text-red-300">{errorMsg}</p></div></div>;
+    if (isLoading) return 
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+            <DynamicStyles storeConfig={storeConfig} />
+            <div className="loader mb-4"></div>
+            <p className="text-gray-400">Cargando restaurante...</p>
+        </div>;
+    if (errorMsg || !storeConfig) return
+         <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <DynamicStyles storeConfig={storeConfig} />
+            <div className="bg-red-900/40 border border-red-500 p-6 rounded-2xl max-w-sm w-full text-center">
+                 <div className="text-5xl mb-4">🚫</div>
+            <h2 className="text-2xl font-black mb-2 text-white uppercase">Error</h2>
+            <p className="text-red-300">{errorMsg}</p>
+            </div>
+         </div>;
     
     if (!storeConfig.abierto) {
         return (
@@ -197,8 +191,7 @@ export default function Menu() {
                         
                         <button 
                             onClick={() => setShowCart(false)} 
-                            className="absolute -top-4 -right-2 sm:top-4 sm:right-4 z-[160] bg-white border border-gray-300 text-gray-800 p-2 px-4 rounded-full shadow-xl font-black hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all text-sm"
-                        >
+                            className="absolute -top-4 -right-2 sm:top-4 sm:right-4 z-[160] bg-white border border-gray-300 text-gray-800 p-2 px-4 rounded-full shadow-xl font-black hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all text-sm">
                             ✕ CERRAR
                         </button>
                         
@@ -236,7 +229,10 @@ export default function Menu() {
             )}
 
             {notification && ( 
-                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 backdrop-blur-md text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
+                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+                 bg-gray-900/95 backdrop-blur-md
+                 text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border
+                 border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
                     <div className="bg-green-500 rounded-full p-2 animate-bounce">
                         <Icons.Check size={32} className="text-white" />
                     </div>

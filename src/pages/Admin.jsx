@@ -5,7 +5,7 @@ import { getCleanDomain, isPremiumDomain } from '../utils/helpers';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useAdminData } from '../hooks/useAdminData';
 
-import { limpiarTexto } from '../utils/adminHelpers';
+import { limpiarTexto } from '../utils/helpers';
 
 // Componentes Modulares
 import { AdminIcons } from '../components/admin/AdminIcons';

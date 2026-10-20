@@ -24,7 +24,7 @@ export const useStoreData = (parametroTienda) => {
 
                 // 2. Fetch de la tienda
                 if (isPremiumDomain) {
-                    const { data, error } = await supabase.from('tiendas').select('*').ilike('dominio_personal', hostname).maybeSingle();
+                       abase.from('tiendas').select('*').ilike('dominio_personal', hostname).maybeSingle();
                     if (error || !data) throw new Error("Tienda no encontrada por dominio.");
                     tiendaData = data;
                 } else {

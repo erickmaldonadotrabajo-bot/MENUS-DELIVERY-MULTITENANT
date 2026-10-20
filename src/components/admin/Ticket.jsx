@@ -1,5 +1,4 @@
-import React from 'react';
-import { limpiarTexto } from '../../utils/adminHelpers';
+import { limpiarTexto } from '../../utils/helpers';
 
 export const Ticket = ({ order, tienda }) => {
     if (!order || !tienda) return null;

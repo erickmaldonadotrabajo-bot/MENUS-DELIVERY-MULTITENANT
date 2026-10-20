@@ -130,7 +130,7 @@ export const ProductItem = memo(({ item, onAdd, themeColor, onShowMedia }) => {
                                         </div>
                                         <span className="text-sm font-medium text-gray-800">{ext.nombre}</span>
                                     </div>
-                                    <span className="text-sm font-bold text-gray-700">+{extPrice > 0 ? `$${extPrice.toFixed(2)}` : 'Gratis'}</span>
+                                    <span className="text-sm font-bold text-gray-700">{extPrice > 0 ? `$${extPrice.toFixed(2)}` : 'Gratis'}</span>
                                 </div>
                             );
                         })}

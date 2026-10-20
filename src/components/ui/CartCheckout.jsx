@@ -76,23 +76,32 @@ export const CartCheckout = ({
             </div>
             
             <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar space-y-4">
-                {cart.map(item => ( 
-                    <div key={item.key} className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <span className="bg-orange-100 text-orange-800 font-bold w-10 h-10 flex items-center justify-center rounded-lg text-lg">{item.qty}</span>
-                            <div className="min-w-0 pr-2">
-                                <p className="font-bold text-gray-900 text-lg leading-tight break-words">{item.nombre}</p>
-                                <p className="text-sm text-gray-600 mt-1 break-words">{item.details}</p>
-                                <p className="text-base text-gray-800 font-bold mt-1">${item.price} {item.isExtra && `(+${item.extraAppliedName})`}</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 shrink-0">
-                            <button onClick={() => updateQty(item.key, -1)} className="p-3 bg-white border rounded-lg text-gray-500 hover:text-red-500 active:bg-gray-100"><Icons.Minus size={20} /></button>
-                            <button onClick={() => updateQty(item.key, 1)} className="p-3 text-white rounded-lg shadow-md active:scale-95 transition-all" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}><Icons.Plus size={20} /></button>
-                        </div>
-                    </div> 
-                ))}
+    {cart.map(item => ( 
+        <div key={item.key} className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-4">
+                <span className="bg-orange-100 text-orange-800 font-bold w-10 h-10 flex items-center justify-center rounded-lg text-lg">{item.qty}</span>
+                <div className="min-w-0 pr-2">
+                    <p className="font-bold text-gray-900 text-lg leading-tight break-words">{item.nombre}</p>
+                    <p className="text-sm text-gray-600 mt-1 break-words">{item.details}</p>
+                    <p className="text-base text-gray-800 font-bold mt-1">
+                        ${item.price * item.qty}
+                        {item.qty > 1 && (
+                            <span className="text-xs font-normal text-gray-500 ml-1">
+                                (${item.price} c/u)
+                            </span>
+                        )}
+                        {item.isExtra && ` (+${item.extraAppliedName})`}
+                    </p>
+
+                </div>
             </div>
+            <div className="flex gap-3 shrink-0">
+                <button onClick={() => updateQty(item.key, -1)} className="p-3 bg-white border rounded-lg text-gray-500 hover:text-red-500 active:bg-gray-100"><Icons.Minus size={20} /></button>
+                <button onClick={() => updateQty(item.key, 1)} className="p-3 text-white rounded-lg shadow-md active:scale-95 transition-all" style={{ backgroundColor: orderType === 'pickup' ? pickupColor : deliveryColor }}><Icons.Plus size={20} /></button>
+            </div>
+        </div> 
+    ))}
+</div>
 
             <div className="bg-gray-50 p-6 border-t space-y-6">
                 <h3 className="font-bold text-gray-600 text-base uppercase flex items-center gap-2"><Icons.Map size={24} /> Datos de Entrega</h3>
