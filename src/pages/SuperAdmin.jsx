@@ -131,26 +131,65 @@ export default function SuperAdmin() {
         setIsUploading(true);
 
         try {
-            const data = JSON.parse(jsonInput);
-            if (!Array.isArray(data)) throw new Error("El JSON debe ser un Array (empezar con corchete '[' )");
+            // 1. Limpieza de bloques Markdown por si la IA los incluye
+            const cleanJson = jsonInput.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const data = JSON.parse(cleanJson);
+
+            if (!Array.isArray(data)) {
+                throw new Error("El JSON debe ser un Array (empezar con corchete '[' )");
+            }
 
             for (let i = 0; i < data.length; i++) {
                 const catInfo = data[i];
-                const { data: catData, error: catErr } = await supabase.from('categorias').insert({
-                    tienda_id: bulkModal.storeId, nombre: catInfo.categoria,
-                    nota_preparacion: catInfo.nota_preparacion || null, orden: i + 1
-                }).select().single();
+                if (!catInfo.categoria) continue;
+
+                // 2. Inserción en tabla 'categorias'
+                const { data: catData, error: catErr } = await supabase
+                    .from('categorias')
+                    .insert({
+                        tienda_id: bulkModal.storeId,
+                        nombre: String(catInfo.categoria).trim(),
+                        nota_preparacion: catInfo.nota_preparacion ? String(catInfo.nota_preparacion).trim() : null,
+                        removables: Array.isArray(catInfo.removables) 
+                            ? catInfo.removables.map(r => String(r).trim()).filter(Boolean) 
+                            : [],
+                        orden: i + 1
+                    })
+                    .select()
+                    .single();
 
                 if (catErr) throw catErr;
 
-                if (catInfo.productos && Array.isArray(catInfo.productos) && catInfo.productos.length > 0) {
-                    const productosParaInsertar = catInfo.productos.map((prod, idx) => ({
-                        tienda_id: bulkModal.storeId, categoria_id: catData.id,
-                        nombre: prod.nombre, descripcion: prod.descripcion || null,
-                        precio: parseFloat(prod.precio) || 0, disponible: true,
-                        has_extra: (prod.extras && prod.extras.length > 0),
-                        extras: prod.extras || [], removables: prod.removables || [], orden: idx + 1
-                    }));
+                // 3. Inserción en tabla 'menu_items'
+                if (Array.isArray(catInfo.productos) && catInfo.productos.length > 0) {
+                    const productosParaInsertar = catInfo.productos.map((prod, idx) => {
+                        // Sanitización estricta de extras a formato JSONB plano: [{"nombre": "...", "precio": ...}]
+                        const extrasSanitizados = Array.isArray(prod.extras)
+                            ? prod.extras
+                                .filter(e => e && e.nombre && String(e.nombre).trim() !== '')
+                                .map(e => ({
+                                    nombre: String(e.nombre).trim(),
+                                    precio: parseFloat(String(e.precio).replace(/[^0-9.]/g, '')) || 0
+                                }))
+                            : [];
+
+                        const removablesSanitizados = Array.isArray(prod.removables)
+                            ? prod.removables.map(r => String(r).trim()).filter(Boolean)
+                            : [];
+
+                        return {
+                            tienda_id: bulkModal.storeId,
+                            categoria_id: catData.id,
+                            nombre: String(prod.nombre || 'Producto').trim(),
+                            descripcion: prod.descripcion ? String(prod.descripcion).trim() : null,
+                            precio: parseFloat(String(prod.precio).replace(/[^0-9.]/g, '')) || 0,
+                            disponible: true,
+                            orden: idx + 1,
+                            image_url: null,
+                            extras: extrasSanitizados,
+                            removables: removablesSanitizados
+                        };
+                    });
 
                     const { error: prodErr } = await supabase.from('menu_items').insert(productosParaInsertar);
                     if (prodErr) throw prodErr;
@@ -167,24 +206,31 @@ export default function SuperAdmin() {
         }
     };
 
-    // EL PROMPT MÁGICO PARA LA IA
-    const aiPrompt = `Actúa como un estructurador de datos experto. Te pasaré un menú de restaurante (en texto o imagen/PDF). Extrae todas las categorías, descripciones, productos, ingredientes removibles (cosas que se pueden quitar), opciones extras con su precio, y el precio base del producto.
+    // PROMPT ALINEADO AL ESQUEMA JSONB PLANO DE EXTRAS
+    const aiPrompt = `Actúa como un estructurador de datos experto para bases de datos de restaurantes. Te pasaré un menú (en texto, imagen o PDF). Extrae todas las categorías y sus productos.
 
-Devuélveme ÚNICAMENTE un archivo JSON puro con esta estructura exacta, sin texto adicional ni formato markdown (sin \`\`\`json):
+REGLAS ESTRICTAS DE EXTRACCIÓN:
+1. Todos los precios ("precio") deben ser únicamente números (sin el símbolo "$" ni texto). Si un producto o extra no tiene precio claro, pon 0.
+2. En cada categoría, si el menú indica ingredientes generales aplicables a todos los platillos que se puedan quitar, ponlos en "removables". Si no hay, pon [].
+3. En cada producto, coloca en "removables" los ingredientes específicos removibles sin costo. Si no especifica, pon [].
+4. En "extras", coloca únicamente adicionales con costo extra usando estrictamente la estructura {"nombre": "...", "precio": ...}. Si no tiene extras, pon [].
+5. NO inventes URLs de imágenes, ni IDs, ni fechas.
+
+Devuélveme ÚNICAMENTE un JSON puro válido que empiece con [ y termine con ], siguiendo esta estructura exacta:
 
 [
   {
     "categoria": "Nombre de la Categoría",
-    "nota_preparacion": "Descripción de categoría (opcional)",
+    "nota_preparacion": "Nota o descripción general de la categoría (o null si no tiene)",
     "productos": [
       {
         "nombre": "Nombre del Producto",
-        "descripcion": "Descripción detallada (opcional)",
-        "precio": 0,
-        "removables": ["Ingrediente 1", "Ingrediente 2"],
+        "descripcion": "Descripción del platillo (o null si no tiene)",
+        "precio": 95,
+        "removables": ["Cebolla", "Cilantro"],
         "extras": [
-          {"nombre": "Extra 1", "precio": 10},
-          {"nombre": "Extra 2", "precio": 15}
+          {"nombre": "Queso Extra", "precio": 15},
+          {"nombre": "Tocino", "precio": 20}
         ]
       }
     ]

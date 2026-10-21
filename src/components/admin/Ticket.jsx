@@ -6,10 +6,27 @@ export const Ticket = ({ order, tienda }) => {
     const isDelivery = order.tipo_entrega === 'delivery';
 
     return (
-        <div id="ticket-area" style={{ position: 'fixed', top: 0, left: '-9999px', width: '58mm', backgroundColor: 'white', color: 'black', zIndex: -1 }}>
-            <div className="ticket-header" style={{ textAlign: 'center', marginBottom: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {tienda.logo_url && <img src={tienda.logo_url} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '5px', filter: 'grayscale(100%)', objectFit: 'cover' }} />}
-                <h2 style={{fontSize: '20px', fontWeight: 'bold', margin:0}}>{tienda.nombre}</h2>
+        <div id="ticket-area" style={{ 
+            position: 'fixed', 
+            top: 0, left: '-9999px', 
+            width: '58mm', 
+            backgroundColor: 'white', 
+            color: 'black', 
+            zIndex: -1 }}>
+            <div className="ticket-header" style={{ 
+                textAlign: 'center', 
+                marginBottom: '10px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center' }}>
+                {tienda.logo_url && <img src={tienda.logo_url} alt="Logo" style={{ 
+                    width: '80px', 
+                    height: '80px', 
+                    borderRadius: '50%', 
+                    marginBottom: '5px', 
+                    filter: 'grayscale(100%)', 
+                    objectFit: 'cover' }} />}
+                <h2 style={{fontSize: '20px ', fontWeight: 'bold', margin:0}}>{tienda.nombre}</h2>
                 <p style={{fontWeight:'bold', fontSize:'18px', margin:'5px 0'}}>{isDelivery ? 'DOMICILIO' : 'PICKUP'}</p>
                 <p style={{fontSize:'12px', margin:0}}>{date}</p>
                 <p style={{fontSize:'12px', fontWeight:'bold', margin:0}}>FOLIO: #{order.id}</p>
