@@ -229,10 +229,7 @@ export default function Menu() {
             )}
 
             {notification && ( 
-                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
-                 bg-gray-900/95 backdrop-blur-md
-                 text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border
-                 border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
+                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 backdrop-blur-md text-white px-8 py-6 rounded-2xl shadow-2xl z-[9999] flex flex-col items-center justify-center gap-4 text-xl font-bold animate-fade-in-down border border-gray-700 text-center min-w-[300px] w-[90%] max-w-md">
                     <div className="bg-green-500 rounded-full p-2 animate-bounce">
                         <Icons.Check size={32} className="text-white" />
                     </div>

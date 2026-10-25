@@ -24,16 +24,16 @@ export const useStoreData = (parametroTienda) => {
 
                 // 2. Fetch de la tienda
                 if (isPremiumDomain) {
-                       abase.from('tiendas').select('*').ilike('dominio_personal', hostname).maybeSingle();
-                    if (error || !data) throw new Error("Tienda no encontrada por dominio.");
+                       supabase.from('tiendas').select('*').ilike('dominio_personal', hostname).maybeSingle();
+                    if (error || !data) throw new Error("TIENDA NO ENCONTRADA.");
                     tiendaData = data;
                 } else {
-                    if (!parametroTienda || parametroTienda.trim() === '') throw new Error("Falta el parámetro en el enlace.");
+                    if (!parametroTienda || parametroTienda.trim() === '') throw new Error("ERROR.");
                     let query = supabase.from('tiendas').select('*');
                     query = /^\d+$/.test(parametroTienda) ? query.eq('id', parseInt(parametroTienda)) : query.eq('slug', parametroTienda);
                     
                     const { data, error } = await query.single();
-                    if (error || !data) throw new Error("La tienda solicitada no existe.");
+                    if (error || !data) throw new Error("LA TIENDA NO EXISTE.");
                     tiendaData = data;
                 }
                 
