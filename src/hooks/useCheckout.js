@@ -24,11 +24,27 @@ export const useCheckout = ({
         setCheckoutError(null);
 
         if (orderType === 'delivery') {
-            if (totals.subtotal < parseFloat(storeConfig.pedido_minimo)) return setCheckoutError(`Pedido mínimo: $${storeConfig.pedido_minimo}`);
-            if (location.status === 'idle') return setCheckoutError("Calcula la tarifa de envío antes de pedir.");
-            if (location.status === 'success' && !location.allowed) return setCheckoutError("Tu ubicación está fuera de nuestra zona de entrega.");
+            // 1. Validación de pedido mínimo
+            if (totals.subtotal < parseFloat(storeConfig.pedido_minimo)) {
+                return setCheckoutError(`Pedido mínimo para envío: $${storeConfig.pedido_minimo}`);
+            }
+
+            // 2. Validación de omisión de cálculo
+            if (location.status === 'idle') {
+                return setCheckoutError("Calcula la tarifa de envío antes de pedir.");
+            }
+
+            // 3. NUEVA BARRERA: Fallo de GPS o permisos denegados (Cierre de fuga de ingresos)
+            if (location.status === 'error' || !location.coords) {
+                return setCheckoutError("Por alguna razón no pudimos obtener tu dirección de entrega. Envía tu pedido como 'Pasar a recoger' y comparte tu ubicación actual por WhatsApp (el costo de envío se calculará y cobrará adicional). ¡Gracias!");
+            }
+
+            // 4. Validación de fuera de zona
+            if (location.status === 'success' && !location.allowed) {
+                return setCheckoutError("Tu ubicación está fuera de nuestra zona de entrega.");
+            }
         }
-        
+                
         const telefonoLimpio = customer.phone ? customer.phone.replace(/[^0-9]/g, '') : '';
         
         if (!customer.name || !telefonoLimpio || !customer.paymentMethod || cart.length === 0) return setCheckoutError("Faltan datos obligatorios (Nombre, Teléfono o Método de Pago).");
