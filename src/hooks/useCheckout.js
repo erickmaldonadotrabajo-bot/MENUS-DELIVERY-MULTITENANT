@@ -24,6 +24,7 @@ export const useCheckout = ({
         setCheckoutError(null);
 
         if (orderType === 'delivery') {
+
             // 1. Validación de pedido mínimo
             if (totals.subtotal < parseFloat(storeConfig.pedido_minimo)) {
                 return setCheckoutError(`Pedido mínimo para envío: $${storeConfig.pedido_minimo}`);
@@ -34,9 +35,9 @@ export const useCheckout = ({
                 return setCheckoutError("Calcula la tarifa de envío antes de pedir.");
             }
 
-            // 3. NUEVA BARRERA: Fallo de GPS o permisos denegados (Cierre de fuga de ingresos)
-            if (location.status === 'error' || !location.coords) {
-                return setCheckoutError("Por alguna razón no pudimos obtener tu dirección de entrega. Envía tu pedido como 'Pasar a recoger' y comparte tu ubicación actual por WhatsApp (el costo de envío se calculará y cobrará adicional). ¡Gracias!");
+            // 3. BARRERA CORRECTA: Basada estrictamente en el estado que ya gestionas
+            if (location.status === 'error') {
+                return setCheckoutError("Por alguna razón no pudimos obtener tu dirección de entrega.\nPaso 1. Envía tu pedido como 'Pasar a recoger'\nPaso 2. Comparte tu ubicación actual por WhatsApp (el costo de envío se calculará y cobrará adicional). ¡Gracias!");
             }
 
             // 4. Validación de fuera de zona
