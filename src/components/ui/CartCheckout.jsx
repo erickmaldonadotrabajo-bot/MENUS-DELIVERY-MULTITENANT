@@ -174,17 +174,18 @@ export const CartCheckout = ({
                     onClick={handleCheckout} 
                     disabled={
                         !storeConfig.abierto || 
-                        isSubmitting || 
+                    isSubmitting || 
+                        (orderType === 'delivery' && location.status !== 'success') || 
                         (orderType === 'delivery' && location.status === 'success' && !location.allowed)
                     } 
-                    className={`w-full py-5 text-xl shadow-xl mt-2 ${
-                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && location.status === 'success' && !location.allowed) 
+                    className={`w-full py-5 text-xl shadow-xl mt-2 transition-all ${
+                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && (location.status !== 'success' || !location.allowed))
                         ? 'text-white' 
                         : 'bg-gray-400 opacity-60 cursor-not-allowed'
                     }`} 
                     icon={storeConfig.abierto ? Icons.Send : Icons.Clock} 
                     style={
-                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && location.status === 'success' && !location.allowed) 
+                        storeConfig.abierto && !isSubmitting && !(orderType === 'delivery' && (location.status !== 'success' || !location.allowed))
                         ? { background: orderType === 'pickup' ? pickupColor : deliveryColor } 
                         : {}
                     }
@@ -193,6 +194,10 @@ export const CartCheckout = ({
                         ? 'ENVIANDO...' 
                         : !storeConfig.abierto 
                             ? 'TIENDA CERRADA' 
+                            : (orderType === 'delivery' && location.status === 'idle')
+                            ? 'FALTA CALCULAR ENVÍO'
+                            : (orderType === 'delivery' && location.status === 'error')
+                            ? 'UBICACIÓN REQUERIDA'
                             : (orderType === 'delivery' && location.status === 'success' && !location.allowed)
                                 ? 'FUERA DE ZONA'
                                 : 'ENVIAR PEDIDO'
