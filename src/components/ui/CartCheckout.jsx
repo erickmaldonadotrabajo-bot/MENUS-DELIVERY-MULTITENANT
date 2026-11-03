@@ -125,7 +125,7 @@ export const CartCheckout = ({
                 {orderType === 'delivery' && (
                     <div className="space-y-2">
                         <Button onClick={requestLocation} variant={location.status === 'success' ? (location.allowed ? 'primary' : 'danger') : 'secondary'} className={`w-full text-base py-4 ${location.status === 'success' && location.allowed ? 'bg-green-600' : ''}`} icon={Icons.Map}>
-                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Lo sentimos, no tenemos cobertura en tu zona.`) : 'Calcular distancia de tu ubicación actual para la entrega'}
+                            {location.status === 'loading' ? '📍 Buscando...' : location.status === 'success' ? (location.allowed ? `✅ ${location.zoneName} ($${location.shippingCost})` : `🚫 Lo sentimos, no tenemos cobertura en tu zona.`) : '(Obligatorio) Da Click Aquí para calcular la ruta de entrega (ENCIENDE TU GPS)'}
                         </Button>
                     </div>
                 )}
@@ -195,7 +195,7 @@ export const CartCheckout = ({
                         : !storeConfig.abierto 
                             ? 'TIENDA CERRADA' 
                             : (orderType === 'delivery' && location.status === 'idle')
-                            ? 'FALTA CALCULAR ENVÍO'
+                            ? 'FALTA TU UBICACIÓN PARA EL ENVÍO'
                             : (orderType === 'delivery' && location.status === 'error')
                             ? 'UBICACIÓN REQUERIDA'
                             : (orderType === 'delivery' && location.status === 'success' && !location.allowed)
