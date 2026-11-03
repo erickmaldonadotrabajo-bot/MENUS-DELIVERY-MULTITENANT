@@ -2,7 +2,12 @@
 import { useState, useCallback } from 'react';
 import { calculateDistance } from '../utils/helpers';
 
-const requestLocation = useCallback((showNotification) => {
+export const useDeliveryZone = (storeConfig) => {
+    const [location, setLocation] = useState({ 
+        lat: null, lng: null, status: 'idle', shippingCost: 0, zoneName: '', distance: 0, allowed: false 
+    });
+
+    const requestLocation = useCallback((showNotification) => {
         if (!navigator.geolocation) {
             setLocation(prev => ({ ...prev, status: 'error' }));
             return;
@@ -33,14 +38,13 @@ const requestLocation = useCallback((showNotification) => {
                 }
             },
             (err) => { 
-                // OPTIMIZACIÓN: Log de depuración para saber exactamente la causa del rechazo
                 console.warn(`Fallo de GPS [Código ${err.code}]:`, err.message);
                 setLocation(prev => ({ ...prev, status: 'error' })); 
                 if(showNotification) showNotification("⚠️ No pudimos obtener tu ubicación.\n Haz tu pedido PICKUP\n Envíanos tu ubicación ACTUAL por WhatsApp."); 
             },
-            // OPTIMIZACIÓN CRÍTICA: enableHighAccuracy en false para triangular por WiFi/4G sin timeouts en interiores
             { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 }
         );
     }, [storeConfig]);
 
     return { location, requestLocation, setLocation };
+};
