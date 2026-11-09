@@ -208,31 +208,53 @@ export default function SuperAdmin() {
     };
 
     // PROMPT ALINEADO AL ESQUEMA JSONB PLANO DE EXTRAS
-const aiPrompt = `Actúa como un estructurador de datos experto para bases de datos de restaurantes. Te pasaré un menú (en texto, imagen o PDF). Extrae todas las categorías y sus productos.
+const aiPrompt = `Actúa como un estructurador de
+datos experto para bases de restaurantes.
+Te pasaré un menú en texto, imagen o PDF.
+Extrae todas las categorías y sus productos.
 
 REGLAS ESTRICTAS DE EXTRACCIÓN:
-1. Todos los precios ("precio") deben ser únicamente números (sin el símbolo "$" ni texto). Si un producto o extra no tiene precio claro, pon 0.
-2. En cada categoría, si el menú indica ingredientes generales aplicables a todos los platillos que se puedan quitar, ponlos en "removables". Si no hay, pon [].
-3. En cada producto, coloca en "removables" los ingredientes específicos removibles sin costo. Si no especifica, pon [].
-4. En "extras", coloca únicamente adicionales con costo extra usando estrictamente la estructura {"nombre": "...", "precio": ...}. Si no tiene extras, pon [].
-5. NUEVA REGLA CRÍTICA ("variantes"): Si el producto obliga al cliente a elegir una opción (ej. tipo de carne, sabor de bebida), NO lo pongas en "extras". Crea un arreglo llamado "variantes" con esta estructura: 
-"variantes": [ { "grupo": "Elige tu proteína", "obligatorio": true, "alternativas": [ { "nombre": "Pollo", "precio_extra": 0 }, { "nombre": "Surtido", "precio_extra": 15 } ] } ]. Si no hay opciones obligatorias, pon [].
+1. Precios: Solo números, sin el símbolo "$".
+Si no hay precio claro, pon 0.
 
-Devuélveme ÚNICAMENTE un JSON puro válido que empiece con [ y termine con ], siguiendo esta estructura exacta:
+2. Productos: Pon ingredientes específicos
+que se puedan quitar en "removables".
+Si no especifica, pon [].
+
+3. Extras: Solo adicionales con costo usando:
+{"nombre": "...", "precio": ...}.
+Si no tiene extras, pon [].
+
+4. VARIANTES: Si el cliente debe elegir algo
+(ej. tipo de carne), NO uses "extras".
+Crea un arreglo "variantes" así:
+[{"grupo": "Proteína", "obligatorio": true,
+"alternativas": [{"nombre": "Pollo",
+"precio_extra": 0}]}]
+Si no hay opciones obligatorias, pon [].
+
+6. MÚLTIPLES: Si el cliente debe eligir 3 opciones
+(ej. 3 salsas de entre 20 viferentes), crea 3 grupos separados:
+"Salsa 1", "Salsa 2" y "Salsa 3".
+Todos deben ser "obligatorio": true
+y tener las mismas alternativas repetidas.
+NUNCA agrupes selecciones juntas.
+
+Devuélveme ÚNICAMENTE un JSON puro válido
+con esta estructura exacta:
 
 [
   {
     "categoria": "Nombre de la Categoría",
-    "nota_preparacion": "Nota o descripción general de la categoría (o null si no tiene)",
+    "nota_preparacion": "Nota general o null",
     "productos": [
       {
         "nombre": "Nombre del Producto",
-        "descripcion": "Descripción del platillo (o null si no tiene)",
+        "descripcion": "Descripción o null",
         "precio": 95,
-        "removables": ["Cebolla", "Cilantro"],
+        "removables": ["Cebolla"],
         "extras": [
-          {"nombre": "Queso Extra", "precio": 15},
-          {"nombre": "Tocino", "precio": 20}
+          {"nombre": "Queso", "precio": 15}
         ],
         "variantes": []
       }

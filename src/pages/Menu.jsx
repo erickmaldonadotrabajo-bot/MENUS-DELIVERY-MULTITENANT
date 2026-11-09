@@ -130,7 +130,7 @@ export default function Menu() {
 
                 {orderType === 'delivery' && (
                     <div className="bg-orange-500/20 border border-orange-500/50 text-orange-200 px-5 py-3 rounded-xl inline-flex items-center gap-2 text-sm sm:text-base font-bold shadow-sm">
-                        <Icons.Clock size={20} className="text-orange-400"/> TIEMPO DE ENTREGA: 60 MINUTOS
+                        <Icons.Clock size={20} className="text-orange-400"/> TIEMPO DE ENTREGA DE 60 - 90 MINUTOS
                     </div>
                 )}
                 {orderType === 'pickup' && (
