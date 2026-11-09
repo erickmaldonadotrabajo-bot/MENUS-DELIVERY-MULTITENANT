@@ -187,7 +187,8 @@ export default function SuperAdmin() {
                             orden: idx + 1,
                             image_url: null,
                             extras: extrasSanitizados,
-                            removables: removablesSanitizados
+                            removables: removablesSanitizados,
+                            variantes: Array.isArray(prod.variantes) ? prod.variantes : []
                         };
                     });
 
@@ -207,14 +208,15 @@ export default function SuperAdmin() {
     };
 
     // PROMPT ALINEADO AL ESQUEMA JSONB PLANO DE EXTRAS
-    const aiPrompt = `Actúa como un estructurador de datos experto para bases de datos de restaurantes. Te pasaré un menú (en texto, imagen o PDF). Extrae todas las categorías y sus productos.
+const aiPrompt = `Actúa como un estructurador de datos experto para bases de datos de restaurantes. Te pasaré un menú (en texto, imagen o PDF). Extrae todas las categorías y sus productos.
 
 REGLAS ESTRICTAS DE EXTRACCIÓN:
 1. Todos los precios ("precio") deben ser únicamente números (sin el símbolo "$" ni texto). Si un producto o extra no tiene precio claro, pon 0.
 2. En cada categoría, si el menú indica ingredientes generales aplicables a todos los platillos que se puedan quitar, ponlos en "removables". Si no hay, pon [].
 3. En cada producto, coloca en "removables" los ingredientes específicos removibles sin costo. Si no especifica, pon [].
 4. En "extras", coloca únicamente adicionales con costo extra usando estrictamente la estructura {"nombre": "...", "precio": ...}. Si no tiene extras, pon [].
-5. NO inventes URLs de imágenes, ni IDs, ni fechas.
+5. NUEVA REGLA CRÍTICA ("variantes"): Si el producto obliga al cliente a elegir una opción (ej. tipo de carne, sabor de bebida), NO lo pongas en "extras". Crea un arreglo llamado "variantes" con esta estructura: 
+"variantes": [ { "grupo": "Elige tu proteína", "obligatorio": true, "alternativas": [ { "nombre": "Pollo", "precio_extra": 0 }, { "nombre": "Surtido", "precio_extra": 15 } ] } ]. Si no hay opciones obligatorias, pon [].
 
 Devuélveme ÚNICAMENTE un JSON puro válido que empiece con [ y termine con ], siguiendo esta estructura exacta:
 
@@ -231,7 +233,8 @@ Devuélveme ÚNICAMENTE un JSON puro válido que empiece con [ y termine con ], 
         "extras": [
           {"nombre": "Queso Extra", "precio": 15},
           {"nombre": "Tocino", "precio": 20}
-        ]
+        ],
+        "variantes": []
       }
     ]
   }
